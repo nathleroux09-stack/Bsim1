@@ -1,0 +1,2462 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Juice Empire Tycoon</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    background: linear-gradient(135deg, #f4f7f6, #e8ecef);
+    height: 100vh; overflow: hidden; display: flex; flex-direction: column;
+  }
+  #topbar {
+    background: #fff; padding: 14px 20px;
+    display: flex; justify-content: space-between; align-items: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06); border-radius: 0 0 18px 18px;
+    flex-shrink: 0; z-index: 10;
+  }
+  #topbar .money { color: #27ae60; font-weight: 900; font-size: 1.4rem; }
+  #topbar .date { color: #636e72; font-weight: 700; font-size: 0.9rem; }
+  #content {
+    flex: 1; overflow-y: auto; padding: 16px 16px 90px 16px;
+  }
+  nav {
+    position: fixed; bottom: 0; width: 100%; background: #fff;
+    display: flex; justify-content: space-around; padding: 10px 0;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.06); border-radius: 18px 18px 0 0;
+    z-index: 100;
+  }
+  .nav-btn {
+    font-size: 22px; cursor: pointer; width: 48px; height: 48px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%; transition: 0.3s; color: #b2bec3;
+    background: transparent;
+  }
+  .nav-btn.active {
+    background: #f39c12; color: #fff;
+    transform: translateY(-16px) scale(1.1);
+    box-shadow: 0 8px 16px rgba(243,156,18,0.4);
+  }
+  .card {
+    background: #fff; border-radius: 18px; padding: 18px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.07);
+    border: 1px solid #dfe6e9; margin-bottom: 16px;
+  }
+  .card h2 { margin-bottom: 10px; font-size: 1.1rem; }
+  .card h3 { margin-bottom: 8px; font-size: 1rem; }
+  .btn {
+    border: none; padding: 11px 14px; border-radius: 12px;
+    font-weight: 800; font-size: 0.9rem; cursor: pointer;
+    color: #fff; width: 100%; margin-top: 8px; transition: 0.2s;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+  }
+  .btn:disabled { background: #ccc !important; cursor: not-allowed; opacity: 0.6; box-shadow: none; }
+  .btn-blue { background: linear-gradient(135deg,#3498db,#2980b9); }
+  .btn-green { background: linear-gradient(135deg,#2ecc71,#27ae60); }
+  .btn-red { background: linear-gradient(135deg,#ff7675,#d63031); }
+  .btn-orange { background: linear-gradient(135deg,#f39c12,#e67e22); }
+  .btn-dark { background: linear-gradient(135deg,#2d3436,#636e72); }
+  .btn-purple { background: linear-gradient(135deg,#9b59b6,#8e44ad); }
+  .sbtn {
+    border: none; padding: 7px 11px; border-radius: 9px;
+    font-weight: 800; font-size: 0.75rem; cursor: pointer;
+    color: #fff; transition: 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  }
+  .sbtn:disabled { background: #ccc !important; cursor: not-allowed; opacity: 0.6; }
+  .sbtn-blue { background: linear-gradient(135deg,#3498db,#2980b9); }
+  .sbtn-green { background: linear-gradient(135deg,#2ecc71,#27ae60); }
+  .sbtn-red { background: linear-gradient(135deg,#ff7675,#d63031); }
+  .sbtn-orange { background: linear-gradient(135deg,#f39c12,#e67e22); }
+  .sbtn-purple { background: linear-gradient(135deg,#9b59b6,#8e44ad); }
+  .sbtn-dark { background: linear-gradient(135deg,#2d3436,#636e72); }
+  .gauge-wrap { background: #dfe6e9; border-radius: 10px; overflow: hidden; }
+  .gauge-fill { height: 10px; border-radius: 10px; transition: width 0.5s; }
+/* ===== BASE HEX ===== */
+.hex {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  color: #fff;
+  flex-shrink: 0;
+
+  clip-path: polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+  position: relative;
+  z-index: 1;
+
+  animation: neonPulse 2s ease-in-out infinite;
+}
+
+/* Glow commun */
+.hex::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  z-index: -1;
+  clip-path: inherit;
+  filter: blur(10px);
+  opacity: 0.8;
+}
+
+/* Effet scan */
+.hex::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    rgba(255,255,255,0.5) 50%,
+    transparent 100%
+  );
+
+  transform: rotate(25deg);
+  animation: neonScan 3s linear infinite;
+}
+
+/* ===== COULEURS PAR RANK ===== */
+
+/* Rank 0 - Commun (gris lumineux) */
+.hex.rank-0 {
+  background: #bdc3c7;
+  box-shadow: 0 0 10px #bdc3c7, 0 0 20px #bdc3c7;
+}
+.hex.rank-0::before { background: #bdc3c7; }
+
+/* Rank 1 - Rare (bleu) */
+.hex.rank-1 {
+  background: #3498db;
+  box-shadow: 0 0 10px #3498db, 0 0 25px #3498db;
+}
+.hex.rank-1::before { background: #3498db; }
+
+/* Rank 2 - Super Rare (violet) */
+.hex.rank-2 {
+  background: #9b59b6;
+  box-shadow: 0 0 12px #9b59b6, 0 0 30px #9b59b6;
+}
+.hex.rank-2::before { background: #9b59b6; }
+
+/* Rank 3 - Épique (orange) */
+.hex.rank-3 {
+  background: #e67e22;
+  box-shadow: 0 0 15px #e67e22, 0 0 35px #e67e22;
+}
+.hex.rank-3::before { background: #e67e22; }
+
+/* Rank 4 - Légendaire (or) */
+.hex.rank-4 {
+  background: #f1c40f;
+  box-shadow: 0 0 20px #f1c40f, 0 0 45px #f1c40f;
+}
+.hex.rank-4::before { background: #f1c40f; }
+
+/* ===== ANIMATIONS ===== */
+
+@keyframes neonPulse {
+  0% { transform: scale(1); filter: brightness(1); }
+  50% { transform: scale(1.08); filter: brightness(1.4); }
+  100% { transform: scale(1); filter: brightness(1); }
+}
+
+@keyframes neonScan {
+  0% { transform: translateX(-100%) rotate(25deg); }
+  100% { transform: translateX(100%) rotate(25deg); }
+}
+  .back-link { color: #3498db; font-weight: 700; cursor: pointer; margin-bottom: 14px; display: inline-block; }
+  #toast {
+    position: fixed; top: 74px; left: 50%; transform: translateX(-50%);
+    background: #2d3436; color: #fff; padding: 10px 22px; border-radius: 30px;
+    font-weight: 700; font-size: 13px; z-index: 9999; display: none;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2); white-space: nowrap;
+  }
+  input[type=number], input[type=text], select {
+    padding: 10px; border-radius: 10px; border: 2px solid #dfe6e9;
+    font-weight: 700; outline: none; font-size: 0.9rem;
+    width: 100%; margin-bottom: 8px;
+  }
+  input[type=number] { width: 70px; text-align: center; margin-bottom: 0; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .row-sb { display: flex; justify-content: space-between; align-items: center; }
+  .muted { color: #636e72; font-size: 12px; }
+  .sep { border: 0; border-top: 2px dashed #dfe6e9; margin: 18px 0; }
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 8px;
+    font-size: 11px; font-weight: 800; color: #fff; background: #f39c12;
+  }
+  .badge-green { background: #27ae60; }
+  .badge-blue { background: #3498db; }
+  .rarity-card {
+    padding: 14px; border-radius: 14px; margin-bottom: 12px;
+    border: 1px solid rgba(0,0,0,0.05);
+  }
+  .shelf-box {
+    background: #f8f9fa; border-radius: 14px; padding: 14px;
+    margin-bottom: 12px; border: 2px solid #dfe6e9;
+  }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+  .prod-choice-card {
+    background: #fff; border-radius: 10px; padding: 8px;
+    border: 1px solid #dfe6e9;
+  }
+  canvas { max-width: 100%; }
+  .chart-wrap { height: 160px; position: relative; }
+  .hero-card {
+    border-radius: 18px; padding: 20px; margin-bottom: 16px;
+    text-align: center; color: #fff;
+  }
+  .stat-money-card {
+    background: linear-gradient(135deg,#1a7a3a,#27ae60);
+    border-radius: 18px; padding: 20px; margin-bottom: 16px; text-align: center; color: #fff;
+  }
+  .stat-money-card .label { font-size: 12px; opacity: 0.85; font-weight: 700; margin-bottom: 4px; }
+  .stat-money-card .amount { font-size: 2.6rem; font-weight: 900; }
+  .btn-bankruptcy {
+  background: #e74c3c;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%; /* Prend toute la largeur de sa carte */
+  margin-top: 10px;
+  }
+  
+  .btn-bankruptcy:hover {
+  background: #c0392b;
+  transform: scale(1.02);
+  }
+  
+  .danger-zone {
+  margin-top: 25px;
+  padding: 15px;
+  border: 2px dashed #e74c3c;
+  border-radius: 12px;
+  background: rgba(231, 76, 60, 0.05);
+  }
+  /* --- BOÎTE DES CONDITIONS --- */
+  .conditions-box {
+    background: linear-gradient(to bottom, #ffffff, #f8f9fa);
+    border: 1px solid rgba(223, 230, 233, 0.8);
+    border-radius: 16px;
+    padding: 18px;
+    margin-bottom: 16px;
+    /* Ombre interne pour un effet "carte incrustée" et ombre externe douce */
+    box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.8), 0 4px 12px rgba(0, 0, 0, 0.03);
+    position: relative;
+    overflow: hidden;
+  }
+  
+  /* Ligne subtile argentée en haut de la boîte pour l'élégance */
+  .conditions-box::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, #bdc3c7, #dfe6e9, #bdc3c7);
+  }
+  
+  /* --- BOÎTE DES RÉCOMPENSES (PERKS) --- */
+  .perks-box {
+    background: linear-gradient(135deg, #fffdf2 0%, #fff7d6 100%);
+    border: 1px solid rgba(241, 196, 15, 0.3);
+    border-left: 6px solid #f39c12;
+    padding: 16px 20px;
+    border-radius: 8px 16px 16px 8px;
+    margin-bottom: 20px;
+    /* Effet 3D léger */
+    box-shadow: 0 8px 20px rgba(243, 156, 18, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.6);
+    position: relative;
+    overflow: hidden;
+  }
+  
+  /* Animation de brillance (Shimmer) qui traverse la carte */
+  .perks-box::after {
+    content: '';
+    position: absolute;
+    top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.7) 50%, rgba(255,255,255,0) 100%);
+    transform: rotate(30deg);
+    animation: shimmer 3s infinite linear;
+    pointer-events: none; /* Empêche l'animation de bloquer les clics */
+  }
+  
+  .perks-box .title { 
+    color: #d35400; 
+    font-weight: 900; 
+    font-size: 1.05rem; 
+    margin-bottom: 6px; 
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    text-shadow: 0 1px 2px rgba(211, 84, 0, 0.1);
+  }
+  
+  .perks-box .desc { 
+    color: #57606f; 
+    font-weight: 600; 
+    font-size: 0.95rem; 
+    line-height: 1.4;
+  }
+  
+  /* --- BOUTON D'AMÉLIORATION ACTIF --- */
+  .btn-upgrade-active { 
+    background: linear-gradient(135deg, #27ae60, #2ecc71) !important; 
+    color: white !important; 
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border: 1px solid #2ecc71;
+    animation: prestigePulse 2s infinite ease-in-out; 
+  }
+  
+  /* Animation de pulsation avec effet de lueur (glow) */
+  @keyframes prestigePulse { 
+    0% { transform: scale(1); box-shadow: 0 0 10px rgba(39, 174, 96, 0.4); } 
+    50% { transform: scale(1.03); box-shadow: 0 0 25px rgba(39, 174, 96, 0.8); } 
+    100% { transform: scale(1); box-shadow: 0 0 10px rgba(39, 174, 96, 0.4); } 
+  }
+  
+  /* Animation clé pour le shimmer de la boîte perks */
+  @keyframes shimmer {
+    0% { transform: translateX(-100%) rotate(30deg); }
+    100% { transform: translateX(100%) rotate(30deg); }
+  }
+  
+/* ===== CARD NÉON ===== */
+.rank-upgrade-card {
+  background: linear-gradient(135deg, #ffffff, #fdfbff);
+  border-radius: 18px;
+  padding: 18px;
+  margin-bottom: 20px;
+  position: relative;
+  overflow: hidden;
+
+  border: 1px solid rgba(155, 89, 182, 0.25);
+
+  /* Glow doux compatible fond blanc */
+  box-shadow:
+    0 0 8px rgba(155, 89, 182, 0.15),
+    0 0 18px rgba(231, 76, 60, 0.08),
+    inset 0 2px 4px rgba(255,255,255,0.8);
+
+  animation: neonCardPulse 4s ease-in-out infinite;
+}
+
+/* halo animé subtil */
+.rank-upgrade-card::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+
+  background: linear-gradient(
+    120deg,
+    rgba(255,255,255,0),
+    rgba(155,89,182,0.3),
+    rgba(231,76,60,0.3),
+    rgba(255,255,255,0)
+  );
+
+  filter: blur(12px);
+  opacity: 0.6;
+  animation: neonBorderFlow 6s linear infinite;
+  z-index: 0;
+}
+
+/* contenu au-dessus */
+.rank-upgrade-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ===== PROGRESS BAR ===== */
+.ru-progress-bg {
+  background: #ecf0f1;
+  border-radius: 20px;
+  height: 14px;
+  width: 100%;
+  overflow: hidden;
+  margin: 12px 0;
+
+  box-shadow:
+    inset 0 2px 6px rgba(0,0,0,0.08),
+    0 0 6px rgba(155,89,182,0.15);
+}
+
+/* BARRE NÉON */
+.ru-progress-fill {
+  height: 100%;
+  border-radius: 20px;
+  position: relative;
+
+  background: linear-gradient(
+    90deg,
+    #ffffff,
+    #9b59b6,
+    #e74c3c,
+    #ffffff
+  );
+
+  background-size: 200% 100%;
+
+  animation: neonFlow 3s linear infinite;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+
+  box-shadow:
+    0 0 6px rgba(155,89,182,0.6),
+    0 0 12px rgba(231,76,60,0.4);
+}
+
+/* shimmer */
+.ru-progress-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+
+  background: linear-gradient(
+    120deg,
+    transparent,
+    rgba(255,255,255,0.7),
+    transparent
+  );
+
+  animation: neonShimmer 2s infinite linear;
+}
+
+/* ===== BOUTON UPGRADE ===== */
+.rank-upgrade-card .btn {
+  background: linear-gradient(135deg, #9b59b6, #e74c3c);
+  border: none;
+
+  box-shadow:
+    0 0 8px rgba(155,89,182,0.6),
+    0 0 18px rgba(231,76,60,0.4);
+
+  animation: neonButtonPulse 2s infinite ease-in-out;
+}
+
+.rank-upgrade-card .btn:hover {
+  transform: scale(1.05);
+  box-shadow:
+    0 0 12px rgba(155,89,182,0.8),
+    0 0 25px rgba(231,76,60,0.6);
+}
+
+/* ===== ANIMATION UPGRADE (à trigger en JS) ===== */
+.rank-upgrade-card.upgraded {
+  animation: upgradeFlash 0.6s ease;
+}
+
+/* ===== ANIMATIONS ===== */
+
+@keyframes neonFlow {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+@keyframes neonShimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes neonCardPulse {
+  0%,100% { box-shadow: 0 0 8px rgba(155,89,182,0.15); }
+  50% { box-shadow: 0 0 16px rgba(155,89,182,0.25); }
+}
+
+@keyframes neonBorderFlow {
+  0% { transform: translateX(-30%); }
+  100% { transform: translateX(30%); }
+}
+
+@keyframes neonButtonPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+
+/* FLASH quand upgrade */
+@keyframes upgradeFlash {
+  0% {
+    box-shadow:
+      0 0 0 rgba(255,255,255,0),
+      0 0 0 rgba(231,76,60,0);
+  }
+  50% {
+    box-shadow:
+      0 0 30px rgba(255,255,255,0.9),
+      0 0 60px rgba(231,76,60,0.8);
+  }
+  100% {
+    box-shadow:
+      0 0 8px rgba(155,89,182,0.15);
+  }
+}
+  
+</style>
+</head>
+<body>
+
+<div id="auth-screen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #f4f7f6, #e8ecef); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+  <div style="background: white; padding: 40px; border-radius: 18px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 300px; text-align: center;">
+    <h2 style="margin-bottom: 20px; color: #2c3e50;">Juice Empire</h2>
+    
+    <input type="text" id="auth-username" placeholder="Nom d'utilisateur" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 8px;">
+    
+    <input type="password" id="auth-password" placeholder="Mot de passe" style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 8px;">
+    
+    <button onclick="handleLogin()" class="btn btn-blue" style="width: 100%; margin-bottom: 10px;">Se connecter</button>
+    <button onclick="handleRegister()" class="btn" style="width: 100%; background: #95a5a6; color: white;">Créer un compte</button>
+    
+    <p id="auth-error" style="color: #e74c3c; margin-top: 15px; font-size: 0.9rem; font-weight: bold; height: 20px;"></p>
+    
+  </div>
+</div>
+
+
+<div id="topbar">
+  <div class="money" id="top-money">💶 200€</div>
+  <div class="date" id="top-date">Jour 1 / Mois 1 / An 1</div>
+</div>
+
+<div id="content"></div>
+
+<div id="toast"></div>
+
+<nav>
+  <div class="nav-btn" data-tab="staff" onclick="setTab('staff')">👥</div>
+  <div class="nav-btn" data-tab="business" onclick="setTab('business')">💼</div>
+  <div class="nav-btn active" data-tab="home" onclick="setTab('home')">🏠</div>
+  <div class="nav-btn" data-tab="shop" onclick="setTab('shop')">🛒</div>
+  <div class="nav-btn" data-tab="stats" onclick="setTab('stats')">📊</div>
+</nav>
+
+<script>
+/* =========================================================
+   CONSTANTES
+   ========================================================= */
+let currentUser = null; // Stocke le nom du joueur connecté
+
+
+const SAVE_KEY = 'juice_empire_v3';
+
+const RARITIES = [
+  { n: 'Commun',     c: '#ecf0f1', text: '#2c3e50', sal: 20,  multi: 0.25,   rgb: '189,195,199' },
+  { n: 'Rare',       c: '#2980b9', text: '#fff',    sal: 45, multi: 0.5,   rgb: '178,218,250'  },
+  { n: 'Super Rare', c: '#8e44ad', text: '#fff',    sal: 100, multi: 1,   rgb: '0,128,255'  },
+  { n: 'Épique',     c: '#e67e22', text: '#fff',    sal: 300, multi: 2,   rgb: '128,0,255'  },
+  { n: 'Légendaire', c: '#f1c40f', text: '#2c3e50', sal: 1000, multi: 5,   rgb: '255,215,0'  },
+];
+
+const JOBS = ['presseur','filler','seller'];
+
+const PRODUCTS = {
+  viande: { name: 'Viande', emoji: '🥩', grades: [
+    { name: 'Économique', buyPrice: 5.0,  sellPrice: 10.0 },
+    { name: 'Standard',   buyPrice: 11.0, sellPrice: 22.0 },
+    { name: 'Premium',    buyPrice: 25.0, sellPrice: 50.0 },
+  ]},
+  oeufs: { name: 'Oeufs', emoji: '🥚', grades: [
+    { name: 'Économique', buyPrice: 1.5,  sellPrice: 3.0 },
+    { name: 'Standard',   buyPrice: 3.3,  sellPrice: 6.6 },
+    { name: 'Premium',    buyPrice: 7.5,  sellPrice: 15.0 },
+  ]},
+  yaourt: { name: 'Yaourt', emoji: '🍦', grades: [
+    { name: 'Économique', buyPrice: 2.0,  sellPrice: 4.0 },
+    { name: 'Standard',   buyPrice: 4.4,  sellPrice: 8.8 },
+    { name: 'Premium',    buyPrice: 10.0, sellPrice: 20.0 },
+  ]},
+  fromage: { name: 'Fromage', emoji: '🧀', grades: [
+    { name: 'Économique', buyPrice: 3.5,  sellPrice: 7.0 },
+    { name: 'Standard',   buyPrice: 7.7,  sellPrice: 15.4 },
+    { name: 'Premium',    buyPrice: 17.5, sellPrice: 35.0 },
+  ]},
+  sandwich: { name: 'Sandwich', emoji: '🥪', grades: [
+    { name: 'Économique', buyPrice: 1.0,  sellPrice: 2.0 },
+    { name: 'Standard',   buyPrice: 2.2,  sellPrice: 4.4 },
+    { name: 'Premium',    buyPrice: 5.0,  sellPrice: 10.0 },
+  ]},
+  fruits: { name: 'Fruits', emoji: '🍎', grades: [
+    { name: 'Économique', buyPrice: 2.0,  sellPrice: 4.0 },
+    { name: 'Standard',   buyPrice: 4.4,  sellPrice: 8.8 },
+    { name: 'Premium',    buyPrice: 10.0, sellPrice: 20.0 },
+  ]},
+};
+
+
+function shelfCapacity(level) {
+  let cap = 25;
+  for (let i = 1; i <= level; i++) {
+    if (i <= 5) cap += 1;
+    else if (i <= 10) cap += 2;
+    else if (i === 11) cap += 10;
+    else cap += 3;
+  }
+  return cap;
+}
+
+function shelfCost(idx, level) {
+  const base = idx < 2 ? 50 : 100;
+  return Math.round(base * Math.pow(1.2, level));
+}
+
+function shelfPopBonus(level) {
+  if (level === 11) return 0.05;
+  return 0;
+}
+
+function sellChance(price, rank, pop) {
+  const X = [2, 6, 9, 15][Math.min(rank, 3)];
+  return Math.min(100, 100 * Math.exp(-0.8 * (price - X * pop)));
+}
+
+function totalValuation(businesses) {
+  return businesses.reduce((s, b) => s + (b.cachedVal || 0), 0);
+}
+// --- UTILITAIRES SUPÉRETTE ---
+function getSuperetteCapacity(level) {
+  let cap = 3;
+  for(let i=1; i<=level; i++) {
+    if(i <= 10) cap += 1;
+    else if(i === 11) cap += 5;
+    else if(i <= 19) cap += 2;
+    else if(i === 20) cap += 10;
+  }
+  return cap;
+}
+
+function getStoreUpgradeCost(level) {
+  let cost = 500 * Math.pow(1.2, level);
+  if (level === 10) cost = (500 * Math.pow(1.2, 10)) * 5; // L'upgrade 11 (passer de 10 à 11)
+  if (level === 19) cost = (500 * Math.pow(1.2, 19)) * 10; // L'upgrade 20
+  return Math.round(cost);
+}
+
+function getCooldownSeconds(level) {
+  let cd = 15; // Temps de base
+  for (let i = 1; i <= level; i++) {
+    if (i <= 5) {
+      cd -= 1; // -0,5s pour les niveaux 1, 2, 3, 4, 5
+    } else if (i <= 11) {
+      cd -= 1.5;   // -1s pour les niveaux 6, 7, 8, 9, 10, 11
+    }
+  }
+  // Sécurité pour ne pas descendre en dessous de 0
+  return Math.max(0, cd); 
+}
+
+
+function getCaisseClientsPerMin(level) {
+  if (level === -1) return 0;
+  let rate = 2;
+  for(let i=1; i<=level; i++) {
+    if (i % 5 === 0) rate += 5;
+    else rate += 1;
+  }
+  return rate;
+}
+
+function getCaisseUpgradeCost(level) {
+  if (level === -1) return 10000; // Prix d'achat initial
+  let cost = 2500 * Math.pow(1.3, level);
+  if ((level + 1) % 5 === 0) cost *= 3; // Paliers 5, 10, 15, 20
+  return Math.round(cost);
+}
+
+// Fonction centrale pour encaisser un client
+function processOneSuperetteClient(biz) {
+  const c = biz.activeClients[0]; 
+  if (!c) return false;
+  
+  const items = [];
+  // On cherche les rayons qui ont du stock
+  biz.shelves.forEach((s,si) => {
+    if (s.item && (s.item.stock || 0) > 0) items.push(si);
+  });
+  
+  let totalBilled = 0;
+
+  for (let i = 0; i < c.itemsBought; i++) {
+    if (items.length === 0) break; // Plus rien en stock dans tout le magasin !
+    
+    const ri = Math.floor(Math.random() * items.length);
+    const shelf = biz.shelves[items[ri]];
+    
+    if (shelf && shelf.item && (shelf.item.stock || 0) > 0) {
+      const product = PRODUCTS[shelf.item.productType];
+      const grade = product.grades[shelf.item.productGrade];
+      
+      const basePrice = grade.sellPrice;
+      const finalPrice = basePrice * (biz.popularity || 1); 
+      
+      G.money += finalPrice;
+      totalBilled += finalPrice;
+      
+      // Sécurité : on s'assure que les variables existent avant de faire +1
+      biz.current_month_revenue = (biz.current_month_revenue || 0) + finalPrice;
+      biz.clients_served_total = (biz.clients_served_total || 0) + 1;
+      biz.clients_served_rank = (biz.clients_served_rank || 0) + 1;
+      
+      shelf.item.stock--;
+      if (shelf.item.stock <= 0) items.splice(ri, 1); // On retire ce rayon des choix possibles
+    }
+  }
+  
+  // Retire le client payé de la liste
+  biz.activeClients.shift();
+  
+  // Petit bonus visuel pour être sûr que ça a marché (optionnel)
+  if (totalBilled > 0) {
+    console.log(`Vente réussie : +${totalBilled.toFixed(2)}€`);
+  } else {
+    toast("Le client est parti sans rien acheter (Stock vide !)");
+  }
+  
+  return true;
+}
+
+function actionManualSellSuperette(bizId) {
+  const biz = G.businesses.find(b => b.id === bizId);
+  if (!biz || biz.type !== 'superette') return;
+  
+  const now = Date.now();
+  // Sécurité : on s'assure que sellCooldownLevel existe
+  const cdLevel = biz.sellCooldownLevel || 0; 
+  const cdMs = getCooldownSeconds(cdLevel) * 1000;
+  
+  // Vérification du délai
+  if (now - (biz.lastManualSell || 0) < cdMs) {
+    console.log("Cooldown pas encore terminé.");
+    return; 
+  }
+  
+  if (!biz.activeClients || biz.activeClients.length === 0) { 
+    toast("Personne à la caisse !"); 
+    return; 
+  }
+  
+  // On met à jour l'heure de la dernière vente
+  biz.lastManualSell = now;
+  processOneSuperetteClient(biz);
+  
+  saveState(); 
+  render();
+}
+// Actualise l'interface toutes les secondes pour le compte à rebours du bouton
+setInterval(() => { 
+  if (currentTab === 'business' && currentBizId) render(); 
+}, 1000);
+
+
+
+/* =========================================================
+   ÉTAT DU JEU
+   ========================================================= */
+function showError(msg) {
+  document.getElementById('auth-error').innerText = msg;
+  setTimeout(() => document.getElementById('auth-error').innerText = '', 3000);
+}
+
+function handleRegister() {
+  const user = document.getElementById('auth-username').value.trim();
+  const pass = document.getElementById('auth-password').value.trim();
+  
+  if (user.length < 3 || pass.length < 3) {
+    return showError("3 caractères minimum !");
+  }
+
+  // On récupère la base de données des utilisateurs
+  let usersDB = JSON.parse(localStorage.getItem('juiceEmpireUsersDB')) || {};
+  
+  if (usersDB[user]) {
+    return showError("Ce nom existe déjà !");
+  }
+
+  // On enregistre le nouvel utilisateur
+  usersDB[user] = { password: pass };
+  localStorage.setItem('juiceEmpireUsersDB', JSON.stringify(usersDB));
+  
+  // On le connecte automatiquement
+  loginSuccess(user);
+}
+
+function handleLogin() {
+  const user = document.getElementById('auth-username').value.trim();
+  const pass = document.getElementById('auth-password').value.trim();
+  
+  let usersDB = JSON.parse(localStorage.getItem('juiceEmpireUsersDB')) || {};
+  
+  if (!usersDB[user]) {
+    return showError("Utilisateur introuvable.");
+  }
+  if (usersDB[user].password !== pass) {
+    return showError("Mot de passe incorrect.");
+  }
+
+  // Succès !
+  loginSuccess(user);
+}
+
+function loginSuccess(username) {
+  currentUser = username;
+  document.getElementById('auth-screen').style.display = 'none'; // On cache le menu de connexion
+  
+  // On charge la partie spécifique à CE joueur
+  loadState(); 
+  
+  // S'il n'avait pas de sauvegarde, saveState() en créera une nouvelle
+  saveState(); 
+  render();
+}
+
+function initState() {
+  return {
+    money: 200,
+    date: { d: 1, m: 1, y: 1 },
+    inv: { oranges: 0, cups: 0, juicers: 0, pitchers: 1, juice: 0, glasses: 0 },
+    businesses: [],
+    superetteStock: {},
+    chartData: { byMonth: {} },
+    totalMoneyHistory: { labels: [], data: [] },
+  };
+}
+
+function newOJBiz(name) {
+  const market = [];
+  for (let i = 0; i < 3; i++) market.push(randomEmployee(0));
+  return {
+    id: 'oj_' + Date.now() + Math.random(),
+    type: 'orange_juice', name,
+    inv: { oranges: 0, cups: 0, juicers: 0, pitchers: 1, juice: 0, glasses: 0 },
+    rank: 0, popularity: 1.0, cachedVal: 0,
+    clients_served_total: 0, clients_served_rank: 0,
+    current_price: 2.0,
+    current_month_revenue: 0, current_month_expenses: 0,
+    monthly_revenues: [], monthly_expenses: [],
+    total_assets: 100,
+    upgrades: { betterStand: false, doorToDoor: false },
+    staff: { slots: { presseur: null, filler: null, seller: null }, market },
+    rank_upgrades: 0,
+    
+  };
+}
+
+function randomEmployee(rank, specificJob) {
+  const roll = Math.random() * 100; // Génère un nombre entre 0 et 100
+  let rarity = 0; // Par défaut : Commun
+
+  if (rank === 0) {
+    // Commun : 99% (0-99), Rare : 1% (99-100)
+    if (roll > 99) rarity = 1;
+  } 
+  else if (rank === 1) {
+    // Commun 96%, Rare 3.5%, Super rare 0.5%
+    if (roll > 99.5) rarity = 2;      // Les derniers 0.5%
+    else if (roll > 96) rarity = 1;   // Les 1.5% précédents
+  } 
+  else if (rank === 2) {
+    // Commun 95%, Rare 3.5%, Super rare 1.3%, Epic 0.2%
+    if (roll > 99.8) rarity = 3;      // Les derniers 0.2%
+    else if (roll > 98.5) rarity = 2; // 99.8 - 1.3 = 98.5
+    else if (roll > 95) rarity = 1;   // 98.5 - 3.5 = 95
+  } 
+  else { // Rank 3
+    // Commun 85%, Rare 10%, Super rare 3%, Epic 1.95%, Légendaire 0.05%
+    if (roll > 99.95) rarity = 4;     // Les derniers 0.05%
+    else if (roll > 98) rarity = 3;   // 99.95 - 1.95 = 98
+    else if (roll > 95) rarity = 2;   // 98 - 3 = 95
+    else if (roll > 85) rarity = 1;   // 95 - 10 = 85
+  }
+
+  const job = specificJob || JOBS[Math.floor(Math.random() * JOBS.length)];
+  return { 
+    rarity, 
+    job, 
+    id: Math.random().toString(36).substring(2, 9) 
+  };
+}
+
+
+function regenerateMarket(biz) {
+  biz.staff.market = [];
+  // Pour chaque poste existant, on génère 1 à 3 candidats
+  JOBS.forEach(job => {
+    const candidatesCount = Math.floor(Math.random() * 3) + 1; // 1 à 3 profils
+    for (let i = 0; i < candidatesCount; i++) {
+      biz.staff.market.push(randomEmployee(biz.rank, job));
+    }
+  });
+}
+
+function newSuperetteBiz(name) {
+  return {
+    storeLevel: 0,           // Agrandissement du magasin
+    sellCooldownLevel: 0,    // Amélioration de la vitesse de vente manuelle
+    caisseAutoLevel: -1,     // -1 = pas achetée, 0+ = niveau d'amélioration
+    lastManualSell: 0,       // Pour gérer le cooldown du bouton
+    caisseAccumulator: 0,    // Pour fluidifier le rythme de la caisse auto
+    
+    id: 'sup_' + Date.now() + Math.random(),
+    type: 'superette', name,
+    stock: {},
+    rank: 0, popularity: 1.0, cachedVal: 0,
+    clients_served_total: 0, clients_served_rank: 0,
+    current_month_revenue: 0, current_month_expenses: 0,
+    monthly_revenues: [], monthly_expenses: [],
+    total_assets: 1000,
+    upgrades: { affiches: false },
+    shelves: [
+      { id: 'sh0', level: 0, item: null },
+      { id: 'sh1', level: 0, item: null },
+    ],
+    activeClients: [],
+  };
+}
+function loadState() {
+  // Si personne n'est connecté, on crée un état par défaut pour ne pas faire crasher le jeu en arrière-plan
+  if (!currentUser) {
+    G = initState();
+    return;
+  }
+  
+  const saveKey = 'juiceEmpireSave_' + currentUser;
+  const saved = localStorage.getItem(saveKey);
+  
+  if (saved) {
+    try {
+      G = JSON.parse(saved);
+    } catch (e) {
+      console.error("Erreur de chargement", e);
+      G = initState(); // On utilise initState() au lieu de initNewGame()
+    }
+  } else {
+    G = initState(); // On utilise initState() ici aussi
+  }
+}
+
+// Initialisation de base au chargement de la page
+let G = initState();
+
+
+function saveState() {
+  if (!currentUser) return; // Sécurité : on ne sauvegarde pas si personne n'est connecté
+  
+  // La clé de sauvegarde devient spécifique : "save_Bob", "save_Alice", etc.
+  const saveKey = 'juiceEmpireSave_' + currentUser;
+  localStorage.setItem(saveKey, JSON.stringify(G));
+}
+
+
+
+
+/* =========================================================
+   ACTIONS
+   ========================================================= */
+function actionLogout() {
+  saveState(); // On sauvegarde avant de partir
+  currentUser = null;
+  document.getElementById('auth-username').value = '';
+  document.getElementById('auth-password').value = '';
+  document.getElementById('auth-screen').style.display = 'flex'; // On réaffiche le menu
+}
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.display = 'block';
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.style.display = 'none', 2400);
+}
+function recalcValuations() {
+  G.businesses.forEach(b => {
+    // On récupère l'historique des revenus et dépenses
+    const revs = [...(b.monthly_revenues || [])];
+    const exps = [...(b.monthly_expenses || [])];
+    
+    // IMPORTANT : On ajoute les données du mois en cours pour une actualisation "live"
+    revs.push(b.current_month_revenue || 0);
+    exps.push(b.current_month_expenses || 0);
+
+    const len = revs.length;
+    let avgNet = 0;
+    
+    if (len > 0) {
+      // Calcul du profit net total : (Somme des revenus) - (Somme des dépenses)
+      const totalNet = revs.reduce((sum, val, i) => sum + (val - (exps[i] || 0)), 0);
+      // Moyenne mensuelle
+      avgNet = totalNet / len;
+    }
+    
+    // On s'assure que la base de calcul n'est pas négative
+    avgNet = Math.max(0, avgNet);
+
+    // Multiplicateur basé sur le rang (ex: Rang 2 donne +10%, Rang 3 +20%)
+    const rankMulti = 1 + (Math.max(0, b.rank - 1) / 10);
+    
+    // FORMULE DE VALUATION :
+    // Part 1 : La rentabilité (Profit moyen * 6 mois de visibilité * Popularité)
+    const term1 = avgNet * 6 * b.popularity;
+    // Part 2 : La valeur physique (50% de l'argent investi * Bonus de Rang)
+    const term2 = (b.total_assets || 0) * 0.5 * rankMulti;
+
+    b.cachedVal = term1 + term2;
+  });
+}
+
+
+
+
+function actionCreateBusiness(name, type) {
+  if (!name.trim()) { toast('Nom manquant !'); return; }
+  if (G.businesses.length >= 5) { toast('Maximum 5 business !'); return; }
+  const cost = type === 'superette' ? 1000 : 100;
+  if (G.money < cost) { toast(`${cost}€ requis !`); return; }
+  
+  G.money -= cost;
+  const biz = type === 'superette' ? newSuperetteBiz(name.trim()) : newOJBiz(name.trim());
+  
+  // Le prix de base est le premier actif
+  biz.total_assets = cost; 
+  
+  G.businesses.push(biz);
+  saveState(); render();
+  toast('Business créé !');
+}
+
+function actionSellBusiness(id) {
+  const biz = G.businesses.find(b => b.id === id);
+  if (!biz) return;
+  const price = (biz.cachedVal || 0) * 0.45;
+  if (!confirm(`Vendre "${biz.name}" pour ${price.toFixed(2)}€ ?`)) return;
+  G.money += price;
+  G.businesses = G.businesses.filter(b => b.id !== id);
+  saveState(); setTab('business');
+  toast(`Vendu pour ${price.toFixed(2)}€`);
+}
+
+function actionCheckRank(id) {
+  const biz = G.businesses.find(b => b.id === id);
+  if (!biz) return;
+
+  // --- LOGIQUE STAND DE JUS D'ORANGE ---
+  if (biz.type === 'orange_juice') {
+    if (biz.rank === 0) {
+      if (biz.cachedVal >= 1000 && (biz.clients_served_total || 0) >= 50) {
+        biz.rank = 1;
+        biz.popularity += 0.1;
+        biz.clients_served_rank = 0;
+        toast('🎉 RANG 1 ATTEINT (STAND) !');
+      } else toast('Conditions non remplies !');
+    } 
+    else if (biz.rank === 1) {
+      if (biz.cachedVal >= 5000 && (biz.clients_served_total || 0) >= 250) {
+        biz.rank = 2;
+        biz.popularity += 0.2;
+        biz.clients_served_rank = 0;
+        toast('🎉 RANG 2 ATTEINT (STAND) !');
+      } else toast('Conditions non remplies !');
+    }
+  } 
+  
+  // --- LOGIQUE SUPÉRETTE (NOUVEAU SYSTÈME) ---
+  else if (biz.type === 'superette') {
+    // Calcul des pré-requis complexes
+    const nbRayonsNiv8 = biz.shelves.filter(s => s.level >= 8).length;
+    const deuxPremiersNiv15 = (biz.shelves[0]?.level >= 15 && biz.shelves[1]?.level >= 15);
+
+    if (biz.rank === 0) {
+      // Conditions Rank 1 : Val 2500 + 100 clients + 2 rayons niv8 + Bâtiment niv3
+      if (
+        biz.cachedVal >= 2500 && 
+        biz.clients_served_total >= 100 && 
+        nbRayonsNiv8 >= 2 && 
+        biz.storeLevel >= 3
+      ) {
+        biz.rank = 1;
+        biz.popularity += 0.2;
+        biz.clients_served_rank = 0;
+        toast('🎉 SUPÉRETTE RANG 1 ! (Caisse auto débloquée)');
+      } else {
+        toast('Il manque des conditions pour le Rang 1');
+      }
+    } 
+    else if (biz.rank === 1) {
+      // Conditions Rank 2 : Val 30000 + Bâtiment niv10 + 2 rayons niv15 + Caisse auto achetée
+      if (
+        biz.cachedVal >= 30000 && 
+        biz.storeLevel >= 10 && 
+        deuxPremiersNiv15 && 
+        biz.caisseAutoLevel >= 0
+      ) {
+        biz.rank = 2;
+        biz.popularity += 0.5;
+        biz.clients_served_rank = 0;
+        toast('🎉 SUPÉRETTE RANG 2 !');
+      } else {
+        toast('Il manque des conditions pour le Rang 2');
+      }
+    }
+  }
+
+  saveState();
+  render();
+}
+
+function actionBuyUpgrade(bizId, key) {
+  const biz = G.businesses.find(b=>b.id===bizId);
+  if (!biz) return;
+  
+  // -- Logique Supérette --
+  if (biz.type === 'superette') {
+    if (key === 'affiches') {
+      if (biz.upgrades && biz.upgrades.affiches) { toast('Déjà acheté !'); return; }
+      if (G.money < 2500) { toast('Trop cher !'); return; }
+      G.money -= 2500;
+      if (!biz.upgrades) biz.upgrades = {};
+      biz.upgrades.affiches = true;
+      biz.popularity += 1.0;
+      biz.total_assets += 2500;
+      saveState(); render();
+      toast('Affiches achetées !');
+    }
+    return;
+  }
+
+  // -- Logique Stand de Jus (existant) --
+  if (biz.rank < 2) { toast('Rang 2 requis !'); return; }
+  const cost = key === 'betterStand' ? 800 : 200;
+  if (biz.upgrades[key]) { toast('Déjà acheté !'); return; }
+  if (G.money < cost) { toast('Trop cher !'); return; }
+
+  G.money -= cost;
+  biz.upgrades[key] = true;
+  biz.popularity += (key === 'betterStand' ? 0.2 : 0.1);
+  biz.total_assets += cost;
+  saveState(); render();
+  toast(`Amélioration achetée !`);
+}
+
+function actionBuyRankUpgrade(bizId) {
+  const biz = G.businesses.find(b => b.id === bizId);
+  if (!biz || biz.type !== 'orange_juice') return;
+
+  // Configuration des paliers selon le rang actuel
+  const configs = [
+    { max: 10, base: 15, mult: 1.2, pop: 0 },       // Rang 0 -> 1
+    { max: 15, base: 50, mult: 1.3, pop: 0.02 },    // Rang 1 -> 2
+    { max: 20, base: 100, mult: 1.4, pop: 0.03 }    // Rang 2 -> 3
+  ];
+
+  if (biz.rank >= 3) return; // Rang max atteint
+  
+  const conf = configs[biz.rank];
+  const currentUpg = biz.rank_upgrades || 0;
+  
+  if (currentUpg >= conf.max) { 
+    toast('Améliorations maximum atteintes pour ce rang !'); 
+    return; 
+  }
+
+  // Calcul du prix : Prix de base * (multiplicateur ^ nombre d'upgrades)
+  const cost = Math.round(conf.base * Math.pow(conf.mult, currentUpg));
+  
+  if (G.money < cost) { 
+    toast('Fonds insuffisants !'); 
+    return; 
+  }
+
+  G.money -= cost;
+  biz.rank_upgrades = currentUpg + 1;
+  biz.popularity += conf.pop;
+  biz.total_assets += cost; // Augmente la valorisation de l'entreprise
+  const card = document.querySelector('.rank-upgrade-card');
+  if (card) {
+  card.classList.add('upgraded');
+  setTimeout(() => card.classList.remove('upgraded'), 600);
+  }
+  saveState(); render();
+}
+
+function actionPress(id) {
+  const biz = G.businesses.find(b=>b.id===id);
+  if (!biz) return;
+  const maxJuice = biz.inv.pitchers * 1500; // Changé b.inv -> biz.inv
+  
+  if (biz.inv.oranges > 0 && biz.inv.juicers > 0 && biz.inv.juice < maxJuice) {
+    biz.inv.oranges--;
+    biz.inv.juice += Math.floor(Math.random()*101)+150;
+    biz.inv.juice = Math.min(biz.inv.juice, maxJuice);
+  }
+  saveState(); render();
+}
+
+
+function actionFill(id) {
+  const biz = G.businesses.find(b=>b.id===id);
+  if (!biz) return;
+  
+  if (biz.inv.juice >= 200 && biz.inv.cups > 0) {
+    biz.inv.juice -= 200; biz.inv.cups--; biz.inv.glasses++;
+  }
+  saveState(); render();
+}
+
+function actionSell(id) {
+  const biz = G.businesses.find(b=>b.id===id);
+  if (!biz || biz.inv.glasses < 1) return;
+  const p = biz.current_price;
+  let chance = sellChance(p, biz.rank, biz.popularity);
+  if (biz.staff && biz.staff.slots.seller) chance *= (1 + RARITIES[biz.staff.slots.seller.rarity].multi * 0.1);
+  if (Math.random() * 100 <= chance) {
+    let gain = p;
+    if (biz.staff && biz.staff.slots.seller && biz.staff.slots.seller.rarity === 4) gain *= 1.02;
+    G.money += gain;
+    biz.current_month_revenue = (biz.current_month_revenue||0) + gain;
+    biz.clients_served_total++;
+    biz.clients_served_rank++;
+    biz.inv.glasses--;
+    saveState(); render();
+    toast(`+${gain.toFixed(2)}€ vendu !`);
+  } else {
+    toast('Pas de client...');
+  }
+}
+
+function actionBuyShop(bizId, cost, item, qty) {
+  const biz = G.businesses.find(b=>b.id===bizId);
+  if (!biz) return;
+  if (G.money < cost) { toast('Trop cher !'); return; }
+  
+  G.money -= cost;
+  biz.inv[item] = (biz.inv[item] || 0) + qty;
+  biz.current_month_expenses = (biz.current_month_expenses||0) + cost;
+  
+  saveState(); render();
+  toast('Achat réussi !');
+}
+
+
+function actionHire(bizId, idx) {
+  const biz = G.businesses.find(b=>b.id===bizId);
+  if (!biz || biz.type !== 'orange_juice') return;
+  const emp = biz.staff.market[idx];
+  if (!emp) return;
+  if (biz.staff.slots[emp.job]) { toast('Poste déjà occupé !'); return; }
+  biz.staff.slots[emp.job] = emp;
+  biz.staff.market.splice(idx, 1);
+  saveState(); render();
+  toast('Employé recruté !');
+}
+
+function actionFire(bizId, job) {
+  const biz = G.businesses.find(b=>b.id===bizId);
+  if (!biz || biz.type !== 'orange_juice') return;
+  const emp = biz.staff.slots[job];
+  if (!emp) return;
+  const sal = RARITIES[emp.rarity].sal * (job === 'presseur' ? 1.5 : 1);
+  if (G.money < sal) { toast('Fonds insuffisants pour indemnité !'); return; }
+  G.money -= sal;
+  biz.staff.slots[job] = null;
+  saveState(); render();
+  toast(`Viré. Indemnité: ${sal}€`);
+}
+
+function actionUpgradeShelf(bizId, shelfId) {
+  const biz = G.businesses.find(b=>b.id===bizId);
+  if (!biz || biz.type !== 'superette') return;
+  const shelf = biz.shelves.find(s=>s.id===shelfId);
+  if (!shelf) return;
+  const idx = biz.shelves.indexOf(shelf);
+  const cost = shelfCost(idx, shelf.level);
+  if (G.money < cost) { toast('Trop cher !'); return; }
+
+  G.money -= cost;
+  biz.total_assets += cost; // Augmente la valorisation via les actifs
+  shelf.level++;
+  
+  saveState(); render();
+}
+
+function actionBuyShelf(bizId) {
+  const biz = G.businesses.find(b=>b.id===bizId);
+  if (!biz || biz.type !== 'superette') return;
+  if (biz.rank < 1) { toast('Rang 1 requis !'); return; }
+  if (G.money < 1000) { toast('1 000€ requis !'); return; }
+  G.money -= 1000;
+  biz.current_month_expenses = (biz.current_month_expenses||0) + 1000;
+  biz.shelves.push({ id: 'sh_'+Date.now(), level: 0, item: null });
+  saveState(); render();
+  toast('Nouveau rayon acheté !');
+}
+
+function actionSetShelfProduct(bizId, shelfId, productType, grade) {
+  const biz = G.businesses.find(b=>b.id===bizId);
+  if (!biz) return;
+  const shelf = biz.shelves.find(s=>s.id===shelfId);
+  if (!shelf) return;
+  if (productType === null) { shelf.item = null; }
+  else { shelf.item = { productType, productGrade: grade, stock: 0 }; }
+  saveState(); render();
+}
+
+function actionRefillShelf(bizId, shelfId, amount) {
+  const biz = G.businesses.find(b=>b.id===bizId);
+  if (!biz || biz.type !== 'superette') return;
+  const shelf = biz.shelves.find(s=>s.id===shelfId);
+  if (!shelf || !shelf.item) return;
+  const key = `${shelf.item.productType}_${shelf.item.productGrade}`;
+  const avail = biz.stock[key] || 0;
+  const cap = shelfCapacity(shelf.level);
+  const cur = shelf.item.stock || 0;
+  const move = Math.min(amount, avail, cap - cur);
+  if (move <= 0) { toast('Pas de stock !'); return; }
+  biz.stock[key] = avail - move;
+  shelf.item.stock = cur + move;
+  saveState(); render();
+  toast(`${move} unités en rayon`);
+}
+
+function actionBuySupplier(bizId, pk, grade, qty) {
+  const biz = G.businesses.find(b=>b.id===bizId);
+  if (!biz) return;
+  const g = PRODUCTS[pk].grades[grade];
+  let cost = g.buyPrice * qty;
+  if (qty === 100 && biz.rank >= 1) cost *= 0.85;
+  if (G.money < cost) { toast('Trop cher !'); return; }
+  G.money -= cost;
+  biz.current_month_expenses = (biz.current_month_expenses||0) + cost;
+  const key = `${pk}_${grade}`;
+  biz.stock[key] = (biz.stock[key]||0) + qty;
+  saveState(); render();
+  toast(`${qty}x ${g.name} acheté !`);
+}
+function actionUpdatePrice(bizId, newPrice) {
+  // 1. On trouve le business concerné
+  const biz = G.businesses.find(b => b.id === bizId);
+  
+  if (biz) {
+    // 2. On met à jour le prix (avec une sécurité pour ne pas descendre sous 0.1)
+    biz.current_price = Math.max(0.1, newPrice);
+    
+    // 3. LA TOUCHE MAGIQUE : On relance le rendu visuel immédiatement
+    render(); 
+  }
+}
+
+
+function actionFaillite() { // Correction : 'f' minuscule
+  if (confirm('Déclarer faillite ? Toute progression sera perdue !')) {
+    // 1. Supprime la sauvegarde physique
+    localStorage.removeItem(SAVE_KEY);
+    
+    // 2. Réinitialise les données en mémoire
+    G = initState();
+    
+    // 3. Change d'onglet
+    currentTab = 'home'; // ou setTab('home') si votre fonction setTab existe
+    
+    // 4. TRÈS IMPORTANT : Rafraîchit l'affichage
+    render(); 
+    
+    // 5. Notification
+    toast('Faillite déclarée. Nouveau départ !');
+  }
+}
+
+
+/* =========================================================
+   BOUCLES DE JEU
+   ========================================================= */
+let chartTick = 0;
+setInterval(() => {
+  chartTick++;
+  G.totalMoneyHistory.labels.push(chartTick);
+  G.totalMoneyHistory.data.push(G.money);
+  if (G.totalMoneyHistory.labels.length > 120) {
+    G.totalMoneyHistory.labels.shift();
+    G.totalMoneyHistory.data.shift();
+  }
+  const mk = `${G.date.y}_${G.date.m}`;
+  if (!G.chartData.byMonth[mk]) G.chartData.byMonth[mk] = { labels: [], data: [] };
+  G.chartData.byMonth[mk].labels.push(chartTick);
+  G.chartData.byMonth[mk].data.push(G.money);
+  if (G.chartData.byMonth[mk].labels.length > 60) {
+    G.chartData.byMonth[mk].labels.shift();
+    G.chartData.byMonth[mk].data.shift();
+  }
+  saveState();
+}, 1000);
+
+setInterval(() => {
+  G.date.d++;
+  if (G.date.d > 30) {
+    G.date.d = 1; G.date.m++;
+    if (G.date.m > 12) { G.date.m = 1; G.date.y++; }
+    G.businesses.forEach(b => {
+      b.monthly_revenues.push(b.current_month_revenue || 0);
+      if (b.monthly_revenues.length > 12) b.monthly_revenues.shift();
+      b.current_month_revenue = 0;
+      if (b.type === 'orange_juice') {
+        for (const job in b.staff.slots) {
+          const e = b.staff.slots[job];
+          if (e) {
+            const s = RARITIES[e.rarity].sal * (job === 'presseur' ? 1.5 : 1);
+            G.money -= s;
+            b.current_month_expenses = (b.current_month_expenses||0) + s;
+          }
+        }
+      }
+      b.monthly_expenses = b.monthly_expenses || [];
+      b.monthly_expenses.push(b.current_month_expenses || 0);
+      if (b.monthly_expenses.length > 12) b.monthly_expenses.shift();
+      b.current_month_expenses = 0;
+    });
+    toast('📅 Nouveau mois ! Salaires payés.');
+  }
+  recalcValuations();
+  updateTopbar();
+  if (currentTab === 'business' || currentTab === 'home') renderPartialStats();
+  saveState();
+}, 10000);
+
+
+setInterval(() => {
+  G.businesses.forEach(b => {
+    if (b.type === 'orange_juice') regenerateMarket(b);
+  });
+  if (currentTab === 'staff') render();
+}, 300000);
+
+setInterval(() => {
+  const now = Date.now();
+  G.businesses.forEach(biz => {
+    if (biz.type !== 'superette') return;
+    
+    // Logique Caisse Automatique
+    const ratePerMin = getCaisseClientsPerMin(biz.caisseAutoLevel);
+    if (ratePerMin > 0 && biz.activeClients.length > 0) {
+      biz.caisseAccumulator = (biz.caisseAccumulator || 0) + (ratePerMin / 60);
+      while (biz.caisseAccumulator >= 1 && biz.activeClients.length > 0) {
+        biz.caisseAccumulator -= 1;
+        processOneSuperetteClient(biz);
+      }
+    }
+  });
+  updateTopbar();
+  saveState();
+}, 1000);
+
+
+setInterval(() => {
+  const now = Date.now();
+  G.businesses.forEach(biz => {
+    if (biz.type !== 'superette') return;
+    
+    const maxCap = getSuperetteCapacity(biz.storeLevel);
+    const currentClients = (biz.activeClients || []).length;
+    
+    // Si le magasin est plein, personne ne rentre
+    if (currentClients >= maxCap) return; 
+    
+    // Calcule combien de places il reste
+    const freeSlots = maxCap - currentClients;
+    const baseCount = biz.rank === 0 ? (Math.floor(Math.random()*2)+1) : (Math.floor(Math.random()*2)+2);
+    const count = Math.min(baseCount, freeSlots); // On ne fait rentrer que ce qui rentre
+
+    for (let i = 0; i < count; i++) {
+      const r = Math.random();
+      let type, items;
+      if (biz.rank === 0) {
+        type = r < 0.8 ? 'defavorise' : 'middle';
+        items = type === 'defavorise' ? Math.floor(Math.random()*2)+2 : Math.floor(Math.random()*4)+3;
+      } else {
+        type = r < 0.65 ? 'defavorise' : r < 0.95 ? 'middle' : 'aise';
+        items = type === 'defavorise' ? Math.floor(Math.random()*2)+2 : type === 'middle' ? Math.floor(Math.random()*4)+3 : Math.floor(Math.random()*16)+5;
+      }
+      biz.activeClients.push({
+        id: 'c_'+now+'_'+i, type,
+        arrivalTime: now,
+        itemsBought: items, paid: false // departureTime n'est plus nécessaire
+      });
+    }
+  });
+  saveState();
+}, 30000);
+
+
+setInterval(() => {
+  let needsRender = false;
+  G.businesses.forEach(b => {
+    if (b.type === 'orange_juice' && b.staff) {
+      const maxJuice = b.inv.pitchers * 1500;
+
+      // --- 1. LE PRESSEUR ---
+      if (b.staff.slots.presseur) {
+        // On ajoute le multi à la réserve de travail
+        b.staff.slots.presseur.work = (b.staff.slots.presseur.work || 0) + RARITIES[b.staff.slots.presseur.rarity].multi;
+        
+        // MODIFICATION : Seuil passé de 10 à 1
+        while (b.staff.slots.presseur.work >= 1 && b.inv.oranges > 0 && b.inv.juicers > 0 && b.inv.juice < maxJuice) {
+          b.staff.slots.presseur.work -= 1; // On consomme 1 unité de travail
+          b.inv.oranges--;
+          b.inv.juice += Math.floor(Math.random()*101)+150;
+          b.inv.juice = Math.min(b.inv.juice, maxJuice);
+          needsRender = true;
+        }
+      }
+
+      // --- 2. LE REMPLISSEUR ---
+      if (b.staff.slots.filler) {
+        b.staff.slots.filler.work = (b.staff.slots.filler.work || 0) + RARITIES[b.staff.slots.filler.rarity].multi;
+        
+        // MODIFICATION : Seuil passé de 10 à 1
+        while (b.staff.slots.filler.work >= 1 && b.inv.juice >= 200 && b.inv.cups > 0) {
+          b.staff.slots.filler.work -= 1; // On consomme 1 unité de travail
+          b.inv.juice -= 200;
+          b.inv.cups--;
+          b.inv.glasses++;
+          needsRender = true;
+        }
+      }
+
+      // --- 3. LE VENDEUR ---
+      if (b.staff.slots.seller) {
+        b.staff.slots.seller.work = (b.staff.slots.seller.work || 0) + RARITIES[b.staff.slots.seller.rarity].multi;
+        
+        // MODIFICATION : Seuil passé de 10 à 1 (1 essai de vente par point de multi)
+        while (b.staff.slots.seller.work >= 1 && b.inv.glasses > 0) {
+          b.staff.slots.seller.work -= 1; // On consomme 1 essai
+          const p = b.current_price;
+          let chance = sellChance(p, b.rank, b.popularity);
+          
+          if (Math.random() * 100 <= chance) {
+            let gain = p;
+            if (b.staff.slots.seller.rarity === 4) gain *= 1.02;
+            G.money += gain;
+            b.current_month_revenue = (b.current_month_revenue||0) + gain;
+            b.clients_served_total++;
+            b.clients_served_rank++;
+            b.inv.glasses--;
+            needsRender = true;
+          }
+        }
+      }
+    }
+  });
+
+  if (needsRender && currentTab === 'business') {
+    render();
+  }
+}, 1000);
+function actionUpgradeStore(bizId) {
+  const biz = G.businesses.find(b => b.id === bizId);
+  if (!biz || biz.type !== 'superette') return;
+
+  // SÉCURITÉ : Force l'existence de la variable
+  biz.storeLevel = biz.storeLevel || 0; 
+
+  if (biz.storeLevel >= 20) { toast("Taille maximum atteinte !"); return; }
+  
+  const cost = getStoreUpgradeCost(biz.storeLevel);
+  if (G.money < cost) { toast(`Fonds insuffisants ! (${cost}€)`); return; }
+  
+  G.money -= cost;
+  biz.total_assets = (biz.total_assets || 0) + cost;
+  
+  // Distribution de la popularité selon le palier
+  if (biz.storeLevel === 10) biz.popularity += 0.5; // Upgrade 11
+  else if (biz.storeLevel === 19) biz.popularity += 1.0; // Upgrade 20
+  else if (biz.storeLevel > 10) biz.popularity += 0.1; // Upgrade 12 à 19
+  else biz.popularity += 0.05; // Upgrade 1 à 10
+  
+  biz.storeLevel++;
+  saveState(); 
+  render();
+}
+
+function actionUpgradeCooldown(bizId) {
+  const biz = G.businesses.find(b => b.id === bizId);
+  if (!biz || biz.type !== 'superette') return;
+  
+  // SÉCURITÉ : Force l'existence de la variable
+  biz.sellCooldownLevel = biz.sellCooldownLevel || 0;
+
+  if (biz.sellCooldownLevel >= 11) { toast("Vitesse maximum atteinte !"); return; }
+  
+  const cost = Math.round(200 * Math.pow(1.15, biz.sellCooldownLevel));
+  if (G.money < cost) { toast(`Fonds insuffisants ! (${cost}€)`); return; }
+  
+  G.money -= cost;
+  biz.total_assets = (biz.total_assets || 0) + cost;
+  biz.sellCooldownLevel++;
+  
+  saveState(); 
+  render();
+}
+
+function actionBuyCaisse(bizId) {
+  const biz = G.businesses.find(b => b.id === bizId);
+  if (!biz || biz.type !== 'superette' || biz.rank < 1) return;
+
+  // SÉCURITÉ : Force l'existence de la variable (-1 = pas achetée)
+  if (biz.caisseAutoLevel === undefined) biz.caisseAutoLevel = -1; 
+
+  if (biz.caisseAutoLevel >= 20) { toast("Niveau maximum atteint !"); return; }
+  
+  const cost = getCaisseUpgradeCost(biz.caisseAutoLevel);
+  if (G.money < cost) { toast(`Fonds insuffisants ! (${cost}€)`); return; }
+  
+  G.money -= cost;
+  biz.total_assets = (biz.total_assets || 0) + cost;
+  
+  if (biz.caisseAutoLevel >= 0) { // Si c'est une upgrade (pas l'achat initial)
+    const nextLevel = biz.caisseAutoLevel + 1;
+    if (nextLevel % 5 === 0) biz.popularity += 0.5;
+    else biz.popularity += 0.1;
+  }
+  
+  biz.caisseAutoLevel++;
+  saveState(); 
+  render();
+}
+
+
+/* =========================================================
+   RENDU UI
+   ========================================================= */
+let currentTab = 'home';
+let currentBizId = null;
+let currentStaffBizId = null;
+let currentShopSubTab = 'ressources';
+let currentSupplierBizId = null;
+let shelfMenuOpen = null;
+let statsSelectedMonth = '';
+let pressLoading = false;
+let fillLoading = false;
+let pressTimer = null;
+let fillTimer = null;
+let currentOJBizId= null
+let chartInstances = {};
+
+function setTab(tab) {
+  currentTab = tab;
+  currentBizId = null;
+  shelfMenuOpen = null;
+  document.querySelectorAll('.nav-btn').forEach(el => {
+    el.classList.toggle('active', el.dataset.tab === tab);
+  });
+  render();
+}
+
+function updateTopbar() {
+  document.getElementById('top-money').textContent = `💶 ${Math.floor(G.money).toLocaleString()}€`;
+  document.getElementById('top-date').textContent = `Jour ${G.date.d} / Mois ${G.date.m} / An ${G.date.y}`;
+}
+
+function renderPartialStats() {
+  recalcValuations();
+  updateTopbar();
+}
+
+function hex(rank, size=40) {
+  const colors = ['#f39c12','#9b59b6','#e74c3c','#2ecc71','#f1c40f'];
+  const bg = colors[Math.min(rank, colors.length-1)];
+  return `<div class="hex" style="width:${size}px;height:${size}px;background:${bg};font-size:${size*0.45}px;">${rank}</div>`;
+}
+
+function gauge(value, max, color='#f39c12') {
+  const pct = max > 0 ? Math.min(100, (value/max)*100) : 0;
+  return `<div class="gauge-wrap"><div class="gauge-fill" style="width:${pct}%;background:${color};"></div></div>`;
+}
+
+function gaugeRow(label, value, max, color='#9b59b6') {
+  return `<div style="margin-bottom:10px;">
+    <div class="row-sb muted" style="margin-bottom:3px;"><span>${label}</span><span>${value} / ${max}</span></div>
+    ${gauge(value, max, color)}
+  </div>`;
+}
+
+function renderHome() {
+  recalcValuations();
+  const tv = totalValuation(G.businesses);
+  let bizRows = '';
+  G.businesses.forEach(b => {
+    bizRows += `<div class="row-sb" style="padding:8px 0;border-bottom:1px solid #eee;">
+      <div class="row" style="gap:8px;">${hex(b.rank,22)}<span style="font-weight:700;font-size:14px;">${b.type==='superette'?'🏪':'🍊'} ${b.name}</span></div>
+      <span style="color:#27ae60;font-weight:700;">${(b.cachedVal||0).toFixed(0)}€</span>
+    </div>`;
+  });
+  return `
+    
+    <div class="card">
+      <h3>🏗️ Créer un Business</h3>
+      <p class="muted" style="margin-bottom:10px;">Maximum 5 établissements.</p>
+      <input type="text" id="biz-name" placeholder="Nom de l'entreprise" />
+      <select id="biz-type">
+        <option value="orange_juice">🍊 Stand de Jus d'Orange — 100€</option>
+        <option value="superette">🏪 Supérette — 1 000€</option>
+      </select>
+      <button class="btn btn-blue" onclick="actionCreateBusiness(document.getElementById('biz-name').value, document.getElementById('biz-type').value)">Créer</button>
+    </div>
+    ${G.businesses.length > 0 ? `
+    <div class="card">
+      <h3 style="margin-bottom:12px;">📊 Résumé Empire</h3>
+      ${bizRows}
+      <div class="row-sb" style="margin-top:10px;padding-top:10px;border-top:2px solid #dfe6e9;">
+        <span style="font-weight:800;">Total empire</span>
+        <span style="color:#27ae60;font-weight:900;font-size:1.1rem;">${tv.toFixed(0)}€</span>
+      </div>
+    </div>` : ''}
+  `;
+}
+
+function renderBusinessList() {
+  recalcValuations();
+  if (G.businesses.length === 0) return `<h2>Vos Établissements</h2><div class="card"><p class="muted">Aucun établissement. Allez à l'accueil pour créer.</p></div>`;
+  let html = '<h2 style="margin-bottom:12px;">Vos Établissements</h2>';
+  G.businesses.forEach(b => {
+    html += `<div onclick="openBiz('${b.id}')" style="background:#fff;border-radius:18px;padding:18px;margin-bottom:14px;border:2px solid #dfe6e9;cursor:pointer;display:flex;align-items:center;gap:14px;box-shadow:0 4px 10px rgba(0,0,0,0.05);">
+      ${hex(b.rank,40)}
+      <div>
+        <div style="font-weight:800;font-size:1rem;">${b.type==='superette'?'🏪':'🍊'} ${b.name}</div>
+        <div class="muted">Valo: <b style="color:#27ae60;">${(b.cachedVal||0).toFixed(2)}€</b> | 🔥×${b.popularity.toFixed(2)} | 👥${b.clients_served_total}</div>
+      </div>
+    </div>`;
+  });
+  return html;
+}
+function actionAdjustPrice(id, delta) {
+  const biz = G.businesses.find(b=>b.id===id);
+  if (biz) {
+    let newPrice = biz.current_price + delta;
+    if (newPrice < 0.1) newPrice = 0.1; // Empêche un prix négatif ou à 0
+    biz.current_price = parseFloat(newPrice.toFixed(1));
+    saveState(); render();
+  }
+}
+
+
+function renderOJDetail(biz) {
+  const maxJuice = biz.inv.pitchers * 1500;
+  const rareCount = Object.values(biz.staff.slots).filter(e=>e&&e.rarity>=1).length;
+  const epicCount = Object.values(biz.staff.slots).filter(e=>e&&e.rarity>=3).length;
+
+// --- NOUVEAU : HTML DE LA BARRE D'AMÉLIORATION DE RANG ---
+let rankUpgradeHtml = '';
+const uConfigs = [
+  { max: 10, base: 15, mult: 1.2, pop: 0 },
+  { max: 15, base: 50, mult: 1.3, pop: 0.02 },
+  { max: 20, base: 100, mult: 1.4, pop: 0.03 }
+];
+
+if (biz.rank < 3) {
+  const conf = uConfigs[biz.rank];
+  const currentUpg = biz.rank_upgrades || 0;
+  const isMaxed = currentUpg >= conf.max;
+  const cost = Math.round(conf.base * Math.pow(conf.mult, currentUpg));
+  const pct = Math.min(100, (currentUpg / conf.max) * 100);
+
+  rankUpgradeHtml = `
+    <div class="rank-upgrade-card">
+      <div class="row-sb" style="margin-bottom:4px;">
+        <span style="font-weight:900; color:#2c3e50; font-size:1.05rem;">🔨 Dév. du Stand</span>
+        <span style="font-weight:900; color:#3498db;">${currentUpg} / ${conf.max}</span>
+      </div>
+      <p class="muted" style="font-size:11px;">Améliorations requises pour le prochain rang.</p>
+      
+      <div class="ru-progress-bg">
+        <div class="ru-progress-fill" style="width:${pct}%;"></div>
+      </div>
+
+      ${isMaxed ? 
+        `<div style="color:#27ae60; font-weight:800; text-align:center; margin-top:10px; font-size:13px;">✅ Stand optimisé pour l'évolution !</div>` : 
+        `<button class="btn btn-blue" style="margin-top:8px;" onclick="actionBuyRankUpgrade('${biz.id}')" ${G.money < cost ? 'disabled' : ''}>
+          Améliorer (${cost}€) ${conf.pop > 0 ? `<span style="font-size:11px; opacity:0.8;">(+${conf.pop} pop)</span>` : ''}
+        </button>`
+      }
+    </div>
+  `;
+}
+let rankHtml = '';
+if (biz.rank === 0) {
+  const ok = biz.cachedVal >= 1000 && biz.clients_served_total >= 50;
+  rankHtml = `
+    <h3 style="margin-bottom:10px;">Rang suivant ${hex(1,24)}</h3>
+    <div class="conditions-box">
+      ${gaugeRow('Valorisation 1000€', (biz.cachedVal||0).toFixed(0), 1000)}
+      ${gaugeRow('50 Clients servis', biz.clients_served_total, 50)}
+    </div>
+    <div class="perks-box">
+      <div class="title">Débloque :</div>
+      <div class="desc">Vendre plus cher, employés Rares.</div>
+    </div>
+    <button class="btn btn-dark ${ok ? 'btn-upgrade-active' : ''}" ${!ok?'disabled':''} onclick="actionCheckRank('${biz.id}')">Passer au Rang 1</button>`;
+} else if (biz.rank === 1) {
+  const ok = biz.cachedVal >= 2000 && biz.clients_served_rank >= 300 && rareCount >= 1;
+  rankHtml = `
+    <h3 style="margin-bottom:10px;">Rang suivant ${hex(2,24)}</h3>
+    <div class="conditions-box">
+      ${gaugeRow('Valorisation 2000€', (biz.cachedVal||0).toFixed(0), 2000, '#e74c3c')}
+      ${gaugeRow('300 Nouveaux Clients', biz.clients_served_rank, 300, '#e74c3c')}
+      ${gaugeRow('1 Employés Rare+', rareCount, 1, '#e74c3c')}
+    </div>
+    <div class="perks-box">
+      <div class="title">Débloque :</div>
+      <div class="desc">Améliorations, employés Épiques.</div>
+    </div>
+    <button class="btn btn-dark ${ok ? 'btn-upgrade-active' : ''}" ${!ok?'disabled':''} onclick="actionCheckRank('${biz.id}')">Passer au Rang 2</button>`;
+} else if (biz.rank === 2) {
+  const allUp = biz.upgrades.betterStand && biz.upgrades.doorToDoor;
+  const ok = biz.cachedVal >= 20000 && biz.clients_served_total >= 2000 && epicCount >= 1 && allUp;
+  rankHtml = `
+    <h3 style="margin-bottom:10px;">Rang suivant ${hex(3,24)}</h3>
+    <div class="conditions-box">
+      ${gaugeRow('Valorisation 20 000€', (biz.cachedVal||0).toFixed(0), 20000, '#2ecc71')}
+      ${gaugeRow('2000 Clients Total', biz.clients_served_total, 2000, '#2ecc71')}
+      ${gaugeRow('1 Employés Épic+', epicCount, 1, '#2ecc71')}
+      <div class="muted" style="margin-top:8px;">Toutes les améliorations : ${allUp?'✅':'❌'}</div>
+    </div>
+    <div class="perks-box">
+      <div class="title">Débloque :</div>
+      <div class="desc">Formule popularité×15, Légendaires.</div>
+    </div>
+    <button class="btn btn-dark ${ok ? 'btn-upgrade-active' : ''}" ${!ok?'disabled':''} onclick="actionCheckRank('${biz.id}')">Passer au Rang 3</button>`;
+} else {
+  rankHtml = `<p class="muted" style="font-style:italic;">🌟 Rang maximum atteint !</p>`;
+}
+
+  let upgradesHtml = '';
+  if (biz.rank < 2) {
+    upgradesHtml = `<p class="muted" style="font-style:italic;margin-bottom:16px;">Disponibles au Rang 2</p>`;
+  } else {
+    const bs = biz.upgrades.betterStand;
+    const dd = biz.upgrades.doorToDoor;
+    upgradesHtml = `
+      <div class="row-sb" style="padding:10px 14px;background:${bs?'#eafaf1':'#f8f9fa'};border-radius:12px;margin-bottom:10px;border:2px solid ${bs?'#2ecc71':'#dfe6e9'};">
+        <div><div style="font-weight:800;">🏪 Meilleur Stand</div><div class="muted">+0.2 popularité</div></div>
+        ${bs ? '<span style="color:#2ecc71;font-weight:800;">✅</span>' : `<button class="sbtn sbtn-orange" onclick="actionBuyUpgrade('${biz.id}','betterStand')">800€</button>`}
+      </div>
+      <div class="row-sb" style="padding:10px 14px;background:${dd?'#eafaf1':'#f8f9fa'};border-radius:12px;border:2px solid ${dd?'#2ecc71':'#dfe6e9'};">
+        <div><div style="font-weight:800;">🚪 Publicité Porte à Porte</div><div class="muted">+0.1 popularité</div></div>
+        ${dd ? '<span style="color:#2ecc71;font-weight:800;">✅</span>' : `<button class="sbtn sbtn-orange" onclick="actionBuyUpgrade('${biz.id}','doorToDoor')">200€</button>`}
+      </div>`;
+  }
+
+  return `
+    <span class="back-link" onclick="currentBizId=null;render()">⬅ Retour</span>
+    <div class="card">
+      <div class="row-sb" style="margin-bottom:12px;">
+        <div class="row" style="gap:10px;">${hex(biz.rank,30)}<h2 style="margin:0;">🍊 ${biz.name}</h2></div>
+        <span class="muted">🔥×${biz.popularity.toFixed(2)} | 👥${biz.clients_served_total}</span>
+      </div>
+      <h1 style="text-align:center;color:#27ae60;margin-bottom:18px;">${(biz.cachedVal||0).toFixed(2)}€ <span class="muted" style="font-size:12px;">(Valorisation)</span></h1>
+      
+      <p style="font-weight:700;margin-bottom:4px;">Stock Jus: ${biz.inv.juice} / ${maxJuice} ml</p>
+      ${gauge(biz.inv.juice, maxJuice, '#3498db')}
+
+      <div class="row-sb muted" style="background:#f8f9fa;padding:10px;border-radius:10px;margin:12px 0;">
+        <span>🍊 x${biz.inv.oranges}</span><span>🥤 x${biz.inv.cups}</span><span>🥛 x${biz.inv.glasses}</span><span>⚙️ x${biz.inv.juicers}</span>
+      </div>
+
+      <button class="btn btn-blue" id="press-btn-${biz.id}" onclick="handlePress('${biz.id}')" ${pressLoading||biz.inv.oranges<1||biz.inv.juicers<1||biz.inv.juice>=maxJuice?'disabled':''}>
+        ${pressLoading?'⏳ Pressage...':'🍊 Presser Orange (2s)'}
+      </button>
+      <button class="btn btn-blue" id="fill-btn-${biz.id}" onclick="handleFill('${biz.id}')" ${fillLoading||biz.inv.juice<200||biz.inv.cups<1?'disabled':''}>
+        ${fillLoading?'⏳ Remplissage...':'🥤 Remplir Verre (2s)'}
+      </button>
+
+      <div class="row" style="margin-top:14px; gap:8px; flex-wrap: wrap;">
+      <span style="font-weight:700; width: 100%; margin-bottom: 5px;">Prix de vente :</span>
+      
+      <button class="sbtn sbtn-red" onclick="actionUpdatePrice('${biz.id}', ${biz.current_price - 10})">-10</button>
+      
+      <button class="sbtn sbtn-red" onclick="actionUpdatePrice('${biz.id}', ${biz.current_price - 1})">-1</button>
+      
+      <div style="background:#eee; padding:5px 12px; border-radius:8px; font-weight:800; min-width:60px; text-align:center;">
+      ${biz.current_price.toFixed(1)}€
+      </div>
+      
+      <button class="sbtn sbtn-green" onclick="actionUpdatePrice('${biz.id}', ${biz.current_price + 1})">+1</button>
+      
+      <button class="sbtn sbtn-green" onclick="actionUpdatePrice('${biz.id}', ${biz.current_price + 10})">+10</button>
+      
+      <button class="btn btn-green" style="width:100%; margin-top:10px;" onclick="actionSell('${biz.id}')">Vendre 🥛</button>
+      </div>
+      
+      
+
+      <hr class="sep" />
+      <h3 style="margin-bottom:10px;">⬆️ Améliorations</h3>
+      ${upgradesHtml}
+      <hr class="sep" />
+      ${rankUpgradeHtml}
+      ${rankHtml}
+      <button class="btn btn-red" style="margin-top:30px;" onclick="actionSellBusiness('${biz.id}')">Vendre ce business (45%)</button>
+    </div>`;
+}
+
+function renderSuperetteDetail(biz) {
+  const lv8 = biz.shelves.filter(s=>s.level>=8).length;
+  const sh15 = biz.shelves[0]?.level >= 15 && biz.shelves[1]?.level >= 15;
+  
+  const activeCount = biz.activeClients.length;
+  const maxCap = getSuperetteCapacity(biz.storeLevel);
+  const cdSec = getCooldownSeconds(biz.sellCooldownLevel);
+  const now = Date.now();
+  const timeSinceLastSell = now - (biz.lastManualSell || 0);
+  const btnDisabled = activeCount === 0 || timeSinceLastSell < (cdSec * 1000);
+  const cdLeft = Math.max(0, ((cdSec * 1000) - timeSinceLastSell) / 1000).toFixed(1);
+
+  let shelvesHtml = '';
+  biz.shelves.forEach((shelf, idx) => {
+    // ... [Garde le code existant de shelvesHtml ici, copié à l'identique] ...
+    const cap = shelfCapacity(shelf.level);
+    const stock = shelf.item ? (shelf.item.stock||0) : 0;
+    const nextCost = shelf.level < 15 ? shelfCost(idx, shelf.level) : null;
+    const nextPop = shelfPopBonus(shelf.level+1);
+    const product = shelf.item ? PRODUCTS[shelf.item.productType] : null;
+    const grade = product ? product.grades[shelf.item.productGrade] : null;
+    const isOpen = shelfMenuOpen === shelf.id;
+
+    let productHtml = '';
+    if (product && grade) {
+      const sk = `${shelf.item.productType}_${shelf.item.productGrade}`;
+      productHtml = `
+        <div class="row-sb muted" style="margin:8px 0;">
+          <span>${product.emoji} ${product.name} - ${grade.name}</span>
+          <span style="color:#27ae60;font-weight:700;">${(grade.sellPrice * biz.popularity).toFixed(1)}€/u (Multiplicateur inclus)</span>
+        </div>
+        <div class="row" style="gap:5px;margin-bottom:4px;">
+          <button class="sbtn sbtn-green" onclick="actionRefillShelf('${biz.id}','${shelf.id}',1)">+1</button>
+          <button class="sbtn sbtn-green" onclick="actionRefillShelf('${biz.id}','${shelf.id}',5)">+5</button>
+          <button class="sbtn sbtn-green" onclick="actionRefillShelf('${biz.id}','${shelf.id}',25)">+25</button>
+          <button class="sbtn sbtn-red" onclick="actionSetShelfProduct('${biz.id}','${shelf.id}',null,0)">✕</button>
+        </div>
+        <div class="muted">Stock entrepôt: ${biz.stock[sk]||0}</div>`;
+    } else {
+      let menuHtml = '';
+      if (isOpen) {
+        menuHtml = `<div class="grid2">`;
+        Object.keys(PRODUCTS).forEach(pk => {
+          const p = PRODUCTS[pk];
+          let gradesBtns = p.grades.map((g,gi) => `<button class="sbtn sbtn-purple" style="display:block;width:100%;margin:2px 0;" onclick="actionSetShelfProduct('${biz.id}','${shelf.id}','${pk}',${gi});shelfMenuOpen=null;render();">${g.name}</button>`).join('');
+          menuHtml += `<div class="prod-choice-card"><div style="font-weight:700;font-size:12px;margin-bottom:4px;">${p.emoji} ${p.name}</div>${gradesBtns}</div>`;
+        });
+        menuHtml += `</div>`;
+      }
+      productHtml = `
+        <button class="sbtn sbtn-blue" style="margin-top:8px;" onclick="shelfMenuOpen=shelfMenuOpen==='${shelf.id}'?null:'${shelf.id}';render();">
+          ${isOpen?'✕ Fermer':'+ Choisir produit'}
+        </button>
+        ${menuHtml}`;
+    }
+
+    shelvesHtml += `<div class="shelf-box">
+      <div class="row-sb" style="margin-bottom:6px;">
+        <div style="font-weight:800;">Rayon ${idx+1} <span class="badge" style="background:${shelf.level>=11?'#e67e22':'#f39c12'};">Niv.${shelf.level}${shelf.level>=11?'⭐':''}</span></div>
+        <span class="muted">${stock} / ${cap}</span>
+      </div>
+      ${gauge(stock, cap, '#f39c12')}
+      ${productHtml}
+      <div style="margin-top:8px;">
+        ${nextCost ? `<button class="sbtn sbtn-orange" onclick="actionUpgradeShelf('${biz.id}','${shelf.id}')">Améliorer →Niv.${shelf.level+1} (${nextCost}€${nextPop>0?' +⭐pop':''})</button>` : `<span class="muted">Niveau max</span>`}
+      </div>
+    </div>`;
+  });
+
+  // HTML Rang
+  let rankHtml = '';
+  if (biz.rank === 0) {
+    const ok1 = biz.cachedVal >= 2500 && biz.clients_served_total >= 100 && lv8 >= 2 && biz.storeLevel >= 3;
+    rankHtml = `
+      <div class="conditions-box">
+        ${gaugeRow('Valorisation 2 500€', (biz.cachedVal||0).toFixed(0), 2500)}
+        ${gaugeRow('100 Clients servis', biz.clients_served_total, 100)}
+        ${gaugeRow('2 Rayons niveau 8+', lv8, 2)}
+        ${gaugeRow('Magasin Agrandissement Niv.3+', biz.storeLevel, 3)}
+      </div>
+      <button class="btn btn-dark ${ok1 ? 'btn-upgrade-active' : ''}" ${!ok1?'disabled':''} onclick="actionCheckRank('${biz.id}')">Passer au Rang 1</button>`;
+  } else if (biz.rank === 1) {
+    const ok2 = biz.cachedVal >= 30000 && biz.storeLevel >= 10 && sh15 && biz.caisseAutoLevel >= 0;
+    rankHtml = `
+      <div class="conditions-box">
+        ${gaugeRow('Valorisation 30 000€', (biz.cachedVal||0).toFixed(0), 30000, '#e74c3c')}
+        ${gaugeRow('Agrandissement Niv.10+', biz.storeLevel, 10, '#e74c3c')}
+        ${gaugeRow('2 Premiers Rayons Niv.15+', (biz.shelves[0]?.level>=15?1:0)+(biz.shelves[1]?.level>=15?1:0), 2, '#e74c3c')}
+        <div class="muted" style="margin-top:8px;">Caisse automatique achetée : ${biz.caisseAutoLevel>=0?'✅':'❌'}</div>
+      </div>
+      <button class="btn btn-dark ${ok2 ? 'btn-upgrade-active' : ''}" ${!ok2?'disabled':''} onclick="actionCheckRank('${biz.id}')">Passer au Rang 2</button>`;
+  } else {
+    rankHtml = `<p class="muted" style="font-style:italic;">🌟 Rang maximum atteint !</p>`;
+  }
+
+  // HTML Upgrades
+  const storeCost = getStoreUpgradeCost(biz.storeLevel);
+  const cdUpgradeCost = Math.round(200 * Math.pow(1.15, biz.sellCooldownLevel));
+  const caisseCost = getCaisseUpgradeCost(biz.caisseAutoLevel);
+  const caisseRate = getCaisseClientsPerMin(biz.caisseAutoLevel);
+
+  return `
+    <span class="back-link" onclick="currentBizId=null;render()">⬅ Retour</span>
+    <div class="card">
+      <div class="row-sb" style="margin-bottom:12px;">
+        <div class="row" style="gap:10px;">${hex(biz.rank,30)}<h2 style="margin:0;">🏪 ${biz.name}</h2></div>
+        <span class="muted">🔥×${biz.popularity.toFixed(2)} | 👥${biz.clients_served_total}</span>
+      </div>
+      <h1 style="text-align:center;color:#27ae60;margin-bottom:14px;">${(biz.cachedVal||0).toFixed(2)}€</h1>
+      
+      <div class="shelf-box" style="background:#fff; border-color:#3498db; margin-bottom:16px;">
+        <div class="row-sb" style="margin-bottom:8px;">
+          <span style="font-weight:900;">🛒 File d'attente</span>
+          <span style="color:#e74c3c; font-weight:800;">${activeCount} / ${maxCap} clients</span>
+        </div>
+        ${gauge(activeCount, maxCap, '#e74c3c')}
+        <button class="btn btn-blue" style="margin-top:12px; padding:15px;" onclick="actionManualSellSuperette('${biz.id}')" ${btnDisabled ? 'disabled' : ''}>
+          ${btnDisabled && activeCount > 0 ? `⏳ Attendez ${cdLeft}s` : `💳 Vendre au Client`}
+        </button>
+      </div>
+
+      <hr class="sep" />
+      <h3 style="margin-bottom:12px;">⬆️ Bureau des Améliorations</h3>
+      
+      <div class="row-sb" style="padding:10px; background:#f8f9fa; border-radius:10px; margin-bottom:8px;">
+        <div>
+          <div style="font-weight:800;">🏗️ Agrandir (Niv.${biz.storeLevel}/20)</div>
+          <div class="muted">Capacité Max: ${maxCap}</div>
+        </div>
+        ${biz.storeLevel >= 20 ? '<span class="muted">Max</span>' : `<button class="sbtn sbtn-orange" onclick="actionUpgradeStore('${biz.id}')">${storeCost}€</button>`}
+      </div>
+
+      <div class="row-sb" style="padding:10px; background:#f8f9fa; border-radius:10px; margin-bottom:8px;">
+        <div>
+          <div style="font-weight:800;">⏱️ Vitesse Caisse (Niv.${biz.sellCooldownLevel}/11)</div>
+          <div class="muted">Attente: ${cdSec}s</div>
+        </div>
+        ${biz.sellCooldownLevel >= 11 ? '<span class="muted">Max</span>' : `<button class="sbtn sbtn-orange" onclick="actionUpgradeCooldown('${biz.id}')">${cdUpgradeCost}€</button>`}
+      </div>
+
+      ${biz.rank >= 1 ? `
+      <div class="row-sb" style="padding:10px; background:#eafaf1; border-radius:10px; border:2px solid #2ecc71;">
+        <div>
+          <div style="font-weight:800;">🤖 Caisse Auto (Niv.${biz.caisseAutoLevel === -1 ? '0' : biz.caisseAutoLevel}/20)</div>
+          <div class="muted">${caisseRate} clients/min automatiquement</div>
+        </div>
+        ${biz.caisseAutoLevel >= 20 ? '<span class="muted">Max</span>' : `<button class="sbtn sbtn-green" onclick="actionBuyCaisse('${biz.id}')">${caisseCost}€</button>`}
+      </div>` : `<p class="muted" style="font-size:11px; text-align:center;">🤖 Caisse auto débloquée au Rang 1</p>`}
+
+      <hr class="sep" />
+      <h3 style="margin-bottom:12px;">🗄️ Rayons (${biz.shelves.length})</h3>
+      ${shelvesHtml}
+      ${biz.rank >= 1 ? `<button class="btn btn-blue" onclick="actionBuyShelf('${biz.id}')">+ Acheter un Rayon (1 000€)</button>` : ''}
+      
+      <hr class="sep" />
+      <h3 style="margin-bottom:12px;">📈 Progression Rang</h3>
+      ${rankHtml}
+      <button class="btn btn-red" style="margin-top:30px;" onclick="actionSellBusiness('${biz.id}')">Vendre (45%)</button>
+    </div>`;
+}
+
+
+function openBiz(id) {
+  currentBizId = id;
+  shelfMenuOpen = null;
+  render();
+}
+
+function renderBusiness() {
+  if (currentBizId) {
+    const biz = G.businesses.find(b=>b.id===currentBizId);
+    if (!biz) { currentBizId = null; return renderBusiness(); }
+    recalcValuations();
+    return biz.type === 'orange_juice' ? renderOJDetail(biz) : renderSuperetteDetail(biz);
+  }
+  return renderBusinessList();
+}
+
+function handlePress(id) {
+  if (pressLoading) return;
+  pressLoading = true;
+  render();
+  pressTimer = setTimeout(() => { pressLoading = false; actionPress(id); }, 2000);
+}
+
+function handleFill(id) {
+  if (fillLoading) return;
+  fillLoading = true;
+  render();
+  fillTimer = setTimeout(() => { fillLoading = false; actionFill(id); }, 2000);
+}
+
+
+function renderStaff() {
+  const ojBizzes = G.businesses.filter(b=>b.type==='orange_juice');
+  if (!currentStaffBizId || !ojBizzes.find(b=>b.id===currentStaffBizId)) {
+    currentStaffBizId = null;
+  }
+  if (!currentStaffBizId) {
+    if (ojBizzes.length === 0) return `<h2>Équipes</h2><div class="card"><p class="muted">Aucun stand de jus d'orange.</p></div>`;
+    let html = '<h2 style="margin-bottom:12px;">Équipes des Stands de Jus</h2>';
+    ojBizzes.forEach(b => {
+      const filled = Object.values(b.staff.slots).filter(Boolean).length;
+      html += `<div onclick="currentStaffBizId='${b.id}';render()" style="background:#fff;border-radius:18px;padding:16px;margin-bottom:12px;border:2px solid #dfe6e9;cursor:pointer;display:flex;align-items:center;gap:12px;">
+        ${hex(b.rank,30)}<div><div style="font-weight:800;">🍊 ${b.name}</div><div class="muted">${filled}/3 postes occupés</div></div>
+      </div>`;
+    });
+    return html;
+  }
+  const biz = ojBizzes.find(b=>b.id===currentStaffBizId);
+  if (!biz) { currentStaffBizId = null; return renderStaff(); }
+
+let marketHtml = biz.staff.market.length === 0 ? '<p class="muted">Marché vide — se recharge automatiquement.</p>' : '';
+
+if (biz.staff.market.length > 0) {
+  JOBS.forEach(job => {
+    const candidates = biz.staff.market.filter(e => e.job === job);
+    if (candidates.length > 0) {
+      marketHtml += `<h4 style="margin-top:12px; margin-bottom:8px; color:#636e72; text-transform:uppercase;">${job}</h4>`;
+      marketHtml += `<div class="grid2">`; // On utilise ta classe CSS grid2 pour les aligner par 2
+      
+      candidates.forEach(e => {
+        const originalIndex = biz.staff.market.indexOf(e);
+        const r = RARITIES[e.rarity];
+        const sal = r.sal * (e.job === 'presseur' ? 1.5 : 1);
+        marketHtml += `
+          <div class="rarity-card" style="background:${r.c};color:${r.text};margin-bottom:0;">
+            <span style="font-size:11px;font-weight:900;text-transform:uppercase;background:rgba(255,255,255,0.3);padding:3px 8px;border-radius:8px;">${r.n}</span>
+            <div style="margin:8px 0;font-size:12px;">Sal: ${sal}€/m<br/>Eff: ×${r.multi}</div>
+            <button onclick="actionHire('${biz.id}',${originalIndex})" style="border:none;padding:6px;border-radius:6px;background:rgba(255,255,255,0.3);color:inherit;font-weight:800;cursor:pointer;width:100%;">Recruter</button>
+          </div>`;
+      });
+      marketHtml += `</div>`;
+    }
+  });
+}
+
+
+  let slotsHtml = '';
+  Object.entries(biz.staff.slots).forEach(([job, e]) => {
+    if (!e) {
+      slotsHtml += `<div style="padding:14px;border-radius:14px;margin-bottom:10px;background:#f8f9fa;border:2px dashed #dfe6e9;color:#bdc3c7;">${job.toUpperCase()} — Poste vacant</div>`;
+    } else {
+      const r = RARITIES[e.rarity];
+      const sal = r.sal * (job==='presseur' ? 1.5 : 1);
+      slotsHtml += `<div class="rarity-card" style="background:${r.c};color:${r.text};">
+        <span style="font-size:11px;font-weight:900;text-transform:uppercase;background:rgba(255,255,255,0.3);padding:3px 8px;border-radius:8px;">${r.n}</span>
+        <div style="margin:8px 0;font-size:14px;"><b>${job.toUpperCase()}</b> — Actif automatiquement</div>
+        <button onclick="actionFire('${biz.id}','${job}')" style="border:none;padding:8px;border-radius:8px;background:linear-gradient(135deg,#ff7675,#d63031);color:#fff;font-weight:800;cursor:pointer;width:100%;">Virer (-${sal}€)</button>
+      </div>`;
+    }
+  });
+
+  return `
+    <span class="back-link" onclick="currentStaffBizId=null;render()">⬅ Retour</span>
+    <div class="muted" style="background:#f8f9fa;padding:10px;border-radius:10px;margin-bottom:14px;">🔥 Popularité: ×${biz.popularity.toFixed(2)} | Rang: ${biz.rank}</div>
+    <h2 style="margin-bottom:10px;">Recrutement (Marché)</h2>
+    <p class="muted" style="margin-bottom:10px;">Actualisé toutes les 5 min.</p>
+    ${marketHtml}
+    <hr class="sep" />
+    <h2 style="margin-bottom:10px;">Équipe en poste</h2>
+    ${slotsHtml}`;
+}
+
+function renderSupplierView() {
+  const sups = G.businesses.filter(b=>b.type==='superette');
+  if (sups.length === 0) return '<p class="muted">Aucune supérette possédée.</p>';
+  if (!currentSupplierBizId || !sups.find(b=>b.id===currentSupplierBizId)) currentSupplierBizId = sups[0].id;
+  const biz = sups.find(b=>b.id===currentSupplierBizId) || sups[0];
+
+  let select = '';
+  if (sups.length > 1) {
+    select = `<select onchange="currentSupplierBizId=this.value;render();" style="margin-bottom:12px;">
+      ${sups.map(b=>`<option value="${b.id}" ${b.id===currentSupplierBizId?'selected':''}>${b.name}</option>`).join('')}
+    </select>`;
+  }
+
+  let prodHtml = '';
+  Object.keys(PRODUCTS).forEach(pk => {
+    const p = PRODUCTS[pk];
+    prodHtml += `<div style="margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid #eee;">
+      <div style="font-weight:800;font-size:15px;margin-bottom:8px;">${p.emoji} ${p.name}</div>`;
+    p.grades.forEach((g,gi) => {
+      const sk = `${pk}_${gi}`;
+      const st = biz.stock[sk]||0;
+      const cost100 = biz.rank>=1 ? g.buyPrice*100*0.85 : g.buyPrice*100;
+      prodHtml += `<div style="background:#f8f9fa;border-radius:12px;padding:10px;margin-bottom:6px;">
+        <div class="row-sb" style="margin-bottom:6px;">
+          <div><span style="font-weight:700;">${g.name}</span><span class="muted" style="margin-left:6px;">achat:${g.buyPrice}€ | vente:${g.sellPrice}€</span></div>
+          <span class="badge badge-blue">Stock: ${st}</span>
+        </div>
+        <div class="row" style="gap:5px;">
+          <button class="sbtn sbtn-blue" onclick="actionBuySupplier('${biz.id}','${pk}',${gi},1)" style="flex:1;font-size:0.7rem;">x1 (${g.buyPrice}€)</button>
+          <button class="sbtn sbtn-blue" onclick="actionBuySupplier('${biz.id}','${pk}',${gi},10)" style="flex:1;font-size:0.7rem;">x10 (${(g.buyPrice*10).toFixed(0)}€)</button>
+          <button class="sbtn ${biz.rank>=1?'sbtn-green':'sbtn-blue'}" onclick="actionBuySupplier('${biz.id}','${pk}',${gi},100)" style="flex:1;font-size:0.7rem;">x100 (${cost100.toFixed(0)}€${biz.rank>=1?' -15%':''})</button>
+        </div>
+      </div>`;
+    });
+    prodHtml += `</div>`;
+  });
+
+  return `${select}<div class="card">
+    <p class="muted" style="margin-bottom:12px;">🚚 <b>Fournisseurs — ${biz.name}</b>${biz.rank>=1?'<span style="color:#27ae60;margin-left:8px;font-weight:700;">✅ -15% sur x100</span>':''}</p>
+    ${prodHtml}
+  </div>`;
+}
+
+function renderShop() {
+  const hasSup = G.businesses.some(b=>b.type==='superette');
+  const ojBizzes = G.businesses.filter(b=>b.type==='orange_juice');
+  
+  const tabsBtns = `
+    <div class="row" style="gap:8px;margin-bottom:14px;">
+      <button class="sbtn ${currentShopSubTab==='ressources'?'sbtn-orange':'sbtn-dark'}" onclick="currentShopSubTab='ressources';render();" style="flex:1;">🍊 Ressources Jus</button>
+      ${hasSup?`<button class="sbtn ${currentShopSubTab==='fournisseurs'?'sbtn-orange':'sbtn-dark'}" onclick="currentShopSubTab='fournisseurs';render();" style="flex:1;">🚚 Fournisseurs</button>`:''}
+    </div>`;
+    
+  if (currentShopSubTab === 'fournisseurs' && hasSup) {
+    return `<h2 style="margin-bottom:12px;">Boutique</h2>${tabsBtns}${renderSupplierView()}`;
+  }
+
+  if (ojBizzes.length === 0) return `<h2 style="margin-bottom:12px;">Boutique</h2>${tabsBtns}<p class="muted">Aucun stand possédé.</p>`;
+
+  // Sélection du stand
+  if (!currentOJBizId || !ojBizzes.find(b=>b.id===currentOJBizId)) currentOJBizId = ojBizzes[0].id;
+  const biz = ojBizzes.find(b=>b.id===currentOJBizId);
+
+  let select = '';
+  if (ojBizzes.length > 1) {
+    select = `<select onchange="currentOJBizId=this.value;render();" style="margin-bottom:12px;">
+      ${ojBizzes.map(b=>`<option value="${b.id}" ${b.id===currentOJBizId?'selected':''}>${b.name}</option>`).join('')}
+    </select>`;
+  }
+  
+  const items = [
+    { label:'🍊 Oranges', sub:'Pack de 5', cost:5, item:'oranges', qty:5 },
+    { label:'🥤 Gobelets', sub:'Pack de 25', cost:5, item:'cups', qty:25 },
+    { label:'⚙️ Presse-fruits', sub:'1 unité', cost:25, item:'juicers', qty:1 },
+    { label:'🏺 Pichet 1.5L', sub:'1 unité', cost:15, item:'pitchers', qty:1 },
+  ];
+  
+  let rows = items.map(x=>`
+    <div style="padding:14px 0; border-bottom:2px dashed #eee;">
+      <div class="row-sb" style="margin-bottom:10px;">
+        <div>
+            <div style="font-weight:900; font-size:1.05rem;">${x.label}</div>
+            <div class="muted">Base : ${x.sub} | En stock : <b style="color:#2c3e50;">${biz.inv[x.item] || 0}</b></div>
+        </div>
+      </div>
+      <div class="row" style="gap:6px;">
+        <button class="sbtn sbtn-blue" style="flex:1; padding:10px 0;" onclick="actionBuyShop('${biz.id}', ${x.cost},'${x.item}',${x.qty})">
+          x1<br/><span style="font-size:0.7rem;">(${x.cost}€)</span>
+        </button>
+        <button class="sbtn sbtn-blue" style="flex:1; padding:10px 0;" onclick="actionBuyShop('${biz.id}', ${x.cost*10},'${x.item}',${x.qty*10})">
+          x10<br/><span style="font-size:0.7rem;">(${x.cost*10}€)</span>
+        </button>
+        <button class="sbtn sbtn-blue" style="flex:1; padding:10px 0;" onclick="actionBuyShop('${biz.id}', ${x.cost*100},'${x.item}',${x.qty*100})">
+          x100<br/><span style="font-size:0.7rem;">(${x.cost*100}€)</span>
+        </button>
+      </div>
+    </div>`).join('');
+    
+  return `
+    <h2 style="margin-bottom:12px;">Boutique</h2>${tabsBtns}
+    ${select}
+    <div class="card">
+      <p class="muted" style="margin-bottom:12px; font-weight:700;">Sélectionnez un stand pour le ravitailler.</p>
+      ${rows}
+    </div>`;
+}
+
+
+function makeChartData(labels, data, color) {
+  return {
+    labels: labels.map(String),
+    datasets: [{ label:'Argent', data, borderColor:color, backgroundColor:color+'33', fill:true, tension:0.4, pointRadius:0 }]
+  };
+}
+const chartOpts = {
+  responsive:true, maintainAspectRatio:false, animation:false,
+  plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx=>`${ctx.parsed.y.toFixed(2)}€` } } },
+  scales:{ x:{display:false}, y:{ ticks:{maxTicksLimit:4,font:{size:10},callback:v=>`${v.toFixed(0)}€`}, grid:{color:'#f0f0f0'} } }
+};
+
+function createOrUpdateChart(canvasId, labels, data, color) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  if (chartInstances[canvasId]) { chartInstances[canvasId].destroy(); }
+  chartInstances[canvasId] = new Chart(canvas, { type:'line', data:makeChartData(labels,data,color), options:chartOpts });
+}
+
+function renderStats() {
+  recalcValuations();
+  
+  // Calcul de la Valorisation Empire : Somme des business + Argent liquide
+  const totalBizVal = G.businesses.reduce((s, b) => s + (b.cachedVal || 0), 0);
+  const empireTotalVal = totalBizVal + G.money;
+
+  let bizRows = '';
+  G.businesses.forEach(b => {
+    bizRows += `
+      <div class="row-sb" style="padding:6px 0;border-bottom:1px solid #eee;">
+        <span class="muted">${b.name}</span>
+        <span style="font-weight:700;">${b.cachedVal.toFixed(2)}€</span>
+      </div>`;
+  });
+
+  const html = `
+    <div class="card" style="background: linear-gradient(135deg, #27ae60, #2ecc71); color: white; text-align: center; border:none;">
+      <div style="font-size: 0.8rem; opacity: 0.9; font-weight: 700; margin-bottom: 5px;">🏆 VALORISATION TOTALE EMPIRE</div>
+      <div style="font-size: 2.4rem; font-weight: 900;">${empireTotalVal.toFixed(2)}€</div>
+      <div style="font-size: 0.7rem; opacity: 0.8;">(Cash + Valeur des Entreprises)</div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:12px;">📈 Détails du Patrimoine</h3>
+      ${bizRows}
+      <div class="row-sb" style="margin-top:10px; padding-top:10px; border-top: 2px solid #eee;">
+        <span style="font-weight:800;">💰 Cash Liquide</span>
+        <span style="font-weight:800; color:#27ae60;">${G.money.toFixed(2)}€</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:5px;">📊 Evolution Empire</h3>
+      <div class="chart-wrap"><canvas id="chart-total"></canvas></div>
+    </div>
+    <div class="card danger-zone">
+    <h3 style="color: #e74c3c; margin-bottom: 5px;">🔥 Zone de Danger</h3>
+    <p style="font-size: 0.85rem; color: #636e72; margin-bottom: 15px;">
+    Si vos affaires vont mal ou si vous voulez recommencer à zéro, vous pouvez liquider l'entreprise.
+    </p>
+    <button onclick="actionFaillite()" class="btn-bankruptcy">
+    DÉCLARER FAILLITE (RESET)
+    </button>
+    </div>
+  `;
+  return html;
+}
+
+
+function renderStatCharts() {
+  const curMK = `${G.date.y}_${G.date.m}`;
+  const th = G.totalMoneyHistory || { labels:[], data:[] };
+  createOrUpdateChart('chart-total', th.labels, th.data, '#f39c12');
+  const cm = G.chartData.byMonth?.[curMK] || { labels:[], data:[] };
+  createOrUpdateChart('chart-current', cm.labels, cm.data, '#2ecc71');
+  if (statsSelectedMonth) {
+    const sm = G.chartData.byMonth?.[statsSelectedMonth] || { labels:[], data:[] };
+    createOrUpdateChart('chart-selected', sm.labels, sm.data, '#9b59b6');
+  }
+}
+
+function render() {
+  recalcValuations();
+  updateTopbar();
+  const el = document.getElementById('content');
+  let html = '';
+  if (currentTab === 'home') html = renderHome();
+  else if (currentTab === 'business') html = renderBusiness();
+  else if (currentTab === 'staff') html = renderStaff();
+  else if (currentTab === 'shop') html = renderShop();
+  else if (currentTab === 'stats') html = renderStats();
+  el.innerHTML = html;
+  if (currentTab === 'stats') {
+    requestAnimationFrame(() => renderStatCharts());
+  }
+}
+
+render();
+</script>
+</body>
+</html>
+>
+
+erStats() {
+  recalcValuations();
+  
+  // Calcul de la Valorisation Empire : Somme des business + Argent liquide
+  const totalBizVal = G.businesses.reduce((s, b) => s + (b.cachedVal || 0), 0);
+  const empireTotalVal = totalBizVal + G.money;
+
+  let bizRows = '';
+  G.businesses.forEach(b => {
+    bizRows += `
+      <div class="row-sb" style="padding:6px 0;border-bottom:1px solid #eee;">
+        <span class="muted">${b.name}</span>
+        <span style="font-weight:700;">${b.cachedVal.toFixed(2)}€</span>
+      </div>`;
+  });
+
+  const html = `
+    <div class="card" style="background: linear-gradient(135deg, #27ae60, #2ecc71); color: white; text-align: center; border:none;">
+      <div style="font-size: 0.8rem; opacity: 0.9; font-weight: 700; margin-bottom: 5px;">🏆 VALORISATION TOTALE EMPIRE</div>
+      <div style="font-size: 2.4rem; font-weight: 900;">${empireTotalVal.toFixed(2)}€</div>
+      <div style="font-size: 0.7rem; opacity: 0.8;">(Cash + Valeur des Entreprises)</div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:12px;">📈 Détails du Patrimoine</h3>
+      ${bizRows}
+      <div class="row-sb" style="margin-top:10px; padding-top:10px; border-top: 2px solid #eee;">
+        <span style="font-weight:800;">💰 Cash Liquide</span>
+        <span style="font-weight:800; color:#27ae60;">${G.money.toFixed(2)}€</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:5px;">📊 Evolution Empire</h3>
+      <div class="chart-wrap"><canvas id="chart-total"></canvas></div>
+    </div>
+    <div class="card danger-zone">
+    <h3 style="color: #e74c3c; margin-bottom: 5px;">🔥 Zone de Danger</h3>
+    <p style="font-size: 0.85rem; color: #636e72; margin-bottom: 15px;">
+    Si vos affaires vont mal ou si vous voulez recommencer à zéro, vous pouvez liquider l'entreprise.
+    </p>
+    <button onclick="actionFaillite()" class="btn-bankruptcy">
+    DÉCLARER FAILLITE (RESET)
+    </button>
+    </div>
+  `;
+  return html;
+}
+
+
+function renderStatCharts() {
+  const curMK = `${G.date.y}_${G.date.m}`;
+  const th = G.totalMoneyHistory || { labels:[], data:[] };
+  createOrUpdateChart('chart-total', th.labels, th.data, '#f39c12');
+  const cm = G.chartData.byMonth?.[curMK] || { labels:[], data:[] };
+  createOrUpdateChart('chart-current', cm.labels, cm.data, '#2ecc71');
+  if (statsSelectedMonth) {
+    const sm = G.chartData.byMonth?.[statsSelectedMonth] || { labels:[], data:[] };
+    createOrUpdateChart('chart-selected', sm.labels, sm.data, '#9b59b6');
+  }
+}
+
+function render() {
+  recalcValuations();
+  updateTopbar();
+  const el = document.getElementById('content');
+  let html = '';
+  if (currentTab === 'home') html = renderHome();
+  else if (currentTab === 'business') html = renderBusiness();
+  else if (currentTab === 'staff') html = renderStaff();
+  else if (currentTab === 'shop') html = renderShop();
+  else if (currentTab === 'stats') html = renderStats();
+  el.innerHTML = html;
+  if (currentTab === 'stats') {
+    requestAnimationFrame(() => renderStatCharts());
+  }
+}
+
+render();
+</script>
+</body>
+</html>
